@@ -83,21 +83,21 @@ file_stem = SITECODE + '_flightlines/Mosaic_' + SITECODE + '_'
 
 # Identify plot IDs
 # List shapefiles for a site in the S3 bucket in the matching directory
-search_criteria = SITECODE
-dirpath = "Site_boundaries/" + SITECODE + "/"
+search_criteria = "Mosaic_"
+dirpath = SITECODE + "_flightlines/"
 objects = s3.list_objects_v2(Bucket=bucket_name, Prefix=dirpath)['Contents']
 # Filter objects based on the search criteria
-shapefiles = [obj['Key'] for obj in objects if obj['Key'].endswith('.shp') and (search_criteria in obj['Key'])]
-shapefile_names = set()
-for i,shp in enumerate(shapefiles):
-    match = re.search(r'Site_boundaries/(.*?)/(.*?)_(.*?).shp', shp)
+mosaics = [obj['Key'] for obj in objects if obj['Key'].endswith('.tif') and (search_criteria in obj['Key'])]
+mosaic_names = set()
+for i,tif in enumerate(mosaics):
+    match = re.search(r'(.*?)_flightlines/Mosaic_(.*?)_(.*?).tif', tif)
     if match:
-        shapefile_name = match.group(3)
-        print(shapefile_name)
-        shapefile_names.add(shapefile_name)
+        msoaic_name = match.group(3)
+        print(mosaic_name)
+        mosaic_names.add(mosaic_name)
     else:
         print("Pattern not found in the URL.")
-plots = list(shapefile_names)  # Convert set back to a list if needed
+plots = list(mosaic_names)  # Convert set back to a list if needed
 print(plots)
 
 # Loop through plots to calculate FRic and FDiv
