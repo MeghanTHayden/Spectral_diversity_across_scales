@@ -92,7 +92,7 @@ mosaic_names = set()
 for i,tif in enumerate(mosaics):
     match = re.search(r'(.*?)_flightlines/Mosaic_(.*?)_(.*?).tif', tif)
     if match:
-        msoaic_name = match.group(3)
+        mosaic_name = match.group(3)
         print(mosaic_name)
         mosaic_names.add(mosaic_name)
     else:
