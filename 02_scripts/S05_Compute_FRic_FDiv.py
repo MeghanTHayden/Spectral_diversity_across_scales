@@ -134,7 +134,7 @@ for i in plots:
     X /= 10000
 
     # Impute missing values
-    imputer = SimpleImputer(missing_values=np.nan, strategy='mean')
+    imputer = SimpleImputer(missing_values=np.nan, strategy='median')
     X_transformed = imputer.fit_transform(X)
 
     # Scale & standardize array
