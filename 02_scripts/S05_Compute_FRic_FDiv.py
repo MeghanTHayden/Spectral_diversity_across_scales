@@ -20,6 +20,7 @@ import requests
 import sklearn
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+import empca
 from sklearn.impute import SimpleImputer
 import kneed
 from kneed import KneeLocator
@@ -123,33 +124,48 @@ for i in plots:
     X = veg_np.reshape(bands, dim1 * dim2).T
     print("Shape of flattened array:", X.shape)
 
-    # Set no data to nan
-    X = X.astype('float32')
-    X[np.isnan(X)] = np.nan
-    X[X <= 0] = np.nan  # Adjust threshold if needed
-    print("Proportion of NaN values:", np.isnan(X).mean())
-
     # Rescale data
     X /= 10000
 
-    # Impute missing values
-    imputer = SimpleImputer(missing_values=np.nan, strategy='median')
-    X_transformed = imputer.fit_transform(X)
+    # Calculate mean and standard deviation while ignoring NaNs
+    print("Proportion of NaN values:", np.isnan(X).mean())
+    mean_vector = np.nanmean(X, axis=0)  # Mean of each band
+    std_vector = np.nanstd(X, axis=0)  # Standard deviation of each band
 
-    # Scale & standardize array
-    scaler = RobustScaler()
-    X_transformed = scaler.fit_transform(X_transformed)
+    # Rescale the data: Center and scale each band
+    X_scaled = (X - mean_vector) / std_vector
 
-    # Perform initial PCA fit
-    print("Fitting PCA")
-    pca = PCA(n_components=comps)
-    pca.fit(X_transformed)
-    print("Explained variance ratio:", pca.explained_variance_ratio_)
+    # Replace NaN values with zeros for empca (empca handles them internally)
+    X_scaled[np.isnan(X_scaled)] = 0
 
-    # PCA transform
-    pca_x = pca.transform(X_transformed)
-    pca_x = pca_x.reshape((dim1, dim2, comps))
+    # Apply PCA with empca
+    pca_model = empca.PCA(X_scaled, n_components=comps)
+
+    # Transform the data using the fitted PCA model
+    pca_transformed = pca_model.transform(X_scaled)
+
+    # Reshape PCA result back to raster dimensions
+    pca_x = pca_transformed.reshape((dim1, dim2, comps))
+
+    # Print PCA output shape
     print("PCA shape:", pca_x.shape)
+
+    # Look at explained variance
+    # Get singular values from the PCA model
+    singular_values = pca_model.s  # Singular values from empca
+
+    # Compute explained variance
+    explained_variance = singular_values**2  # Variance for each principal component
+
+    # Compute total variance
+    total_variance = np.sum(explained_variance)
+
+    # Compute explained variance ratio
+    explained_variance_ratio = explained_variance / total_variance
+
+    # Print explained variance and explained variance ratio
+    print("Explained Variance:", explained_variance)
+    print("Explained Variance Ratio:", explained_variance_ratio)
     
     # Calculate FRic on PCA across window sizes
     print("Calculating FRic")
