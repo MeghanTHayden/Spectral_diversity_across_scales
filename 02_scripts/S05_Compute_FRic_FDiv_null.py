@@ -49,10 +49,44 @@ import pycrs
 import csv
 from csv import writer
 import argparse
+from rasterio.transform import from_origin
 # Import supporting functions, functions for calculating FRic and FDiv
 from S01_Functions import *
 from S01_Moving_Window_FRIC import *
 from S01_Moving_Window_FDiv import *
+
+def write_pca_to_raster(SITECODE, Data_Dir, pca_x):
+    # Define the output raster file name
+    local_pca_raster_path = os.path.join(Out_Dir, f"{SITECODE}_pca_{i}.tif")
+    s3_pca_raster_key = f"/{SITECODE}_pca_{i}.tif"
+
+    # Write PCA to raster
+    with rasterio.open(
+        local_pca_raster_path,
+        "w",
+        driver="GTiff",
+        height=pca_x.shape[0],
+        width=pca_x.shape[1],
+        count=pca_x.shape[2],  # Number of components as raster bands
+        dtype="float32",
+        crs=raster.rio.crs,  # Use CRS from the original raster
+        transform=raster.rio.transform(),  # Use transform from the original raster
+    ) as dst:
+        for band in range(pca_x.shape[2]):  # Loop through PCA components
+            dst.write(pca_x[:, :, band], band + 1)
+
+    print(f"PCA raster saved locally: {local_pca_raster_path}")
+
+    # Upload the PCA raster to S3
+    try:
+        s3.upload_file(local_pca_raster_path, bucket_name, s3_pca_raster_key)
+        print(f"PCA raster uploaded to S3: {s3_pca_raster_key}")
+    except ClientError as e:
+        print(f"Error uploading PCA raster to S3: {e}")
+
+    # Clean up local PCA raster to save space
+    os.remove(local_pca_raster_path)
+    print(f"Local PCA raster removed: {local_pca_raster_path}")
 
 # Set directories
 Data_Dir = '/home/ec2-user/BioSCape_across_scales/01_data/02_processed'
@@ -147,12 +181,16 @@ for i in plots:
     pca_x = pca_x.reshape((dim1, dim2,comps))
     print("PCA shape:", pca_x.shape)
 
+    write_pca_to_raster(SITECODE, Data_Dir, pca_x)
+
     # Randomize pixels to remove spatial organization
     print("Randomizing pixels for null distribution...")
     pca_x_flat = pca_x.reshape(-1, comps)  # Flatten PCA array to 2D (n_pixels, n_components)
     np.random.shuffle(pca_x_flat)          # Shuffle rows randomly
     pca_x_random = pca_x_flat.reshape(dim1, dim2, comps)  # Reshape back to original dimensions
     print("Randomization complete. Shape:", pca_x_random.shape)
+
+    write_pca_to_raster(SITECODE, Data_Dir, pca_x_random)
     
     # Calculate FRic on PCA across window sizes
     print("Calculating FRic")
