@@ -118,33 +118,37 @@ for i in plots:
     print("Raster shape:", shape)
     
     # Process for PCA
-    # Flatten features into one dimesnion
-    dim1 = shape[1]
-    dim2 = shape[2]
-    bands = shape[0]
-    X = veg_np.reshape(bands,dim1*dim2).T
-    print(X.shape)
+    # Flatten features into one dimension
+    dim1, dim2, bands = shape[1], shape[2], shape[0]
+    X = veg_np.reshape(bands, dim1 * dim2).T
+    print("Shape of flattened array:", X.shape)
+
     # Set no data to nan
     X = X.astype('float32')
     X[np.isnan(X)] = np.nan
-    #X[X < 0] = np.nan
-    X[X <= 0] = np.nan
-    X = X/10000 # rescale data
-    # Impute values for NAs
+    X[X <= 0] = np.nan  # Adjust threshold if needed
+    print("Proportion of NaN values:", np.isnan(X).mean())
+
+    # Rescale data
+    X /= 10000
+
+    # Impute missing values
     imputer = SimpleImputer(missing_values=np.nan, strategy='mean')
     X_transformed = imputer.fit_transform(X)
-    # Scale & standardize array 
-    x_mean = X_transformed.mean(axis=0)[np.newaxis, :]
-    X_transformed -=x_mean
-    x_std = np.nanstd(X_transformed,axis=0)[np.newaxis, :]
-    X_transformed /=x_std
+
+    # Scale & standardize array
+    scaler = RobustScaler()
+    X_transformed = scaler.fit_transform(X_transformed)
+
     # Perform initial PCA fit
     print("Fitting PCA")
-    pca = PCA(n_components=comps) # set max number of components
+    pca = PCA(n_components=comps)
     pca.fit(X_transformed)
+    print("Explained variance ratio:", pca.explained_variance_ratio_)
+
     # PCA transform
-    pca_x =  pca.transform(X_transformed)
-    pca_x = pca_x.reshape((dim1, dim2,comps))
+    pca_x = pca.transform(X_transformed)
+    pca_x = pca_x.reshape((dim1, dim2, comps))
     print("PCA shape:", pca_x.shape)
     
     # Calculate FRic on PCA across window sizes
