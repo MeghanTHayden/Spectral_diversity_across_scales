@@ -188,8 +188,10 @@ for i in plots:
     pca_x = pca_x.reshape((dim1, dim2, comps))
     print("PCA shape:", pca_x.shape)
 
-    # Reapply NaN mask to all PCA components
-    pca_x[nan_mask.reshape(dim1, dim2, 1)] = np.nan
+    # Reapply NaN mask
+    nan_mask_reshaped = nan_mask[:, 0].reshape(dim1, dim2)  # Ensure mask matches raster dimensions
+    for i in range(comps):  # Apply mask to each PCA component
+        pca_x[:, :, i][nan_mask_reshaped] = np.nan
 
     write_pca_to_raster(SITECODE, Data_Dir, pca_x)
 
