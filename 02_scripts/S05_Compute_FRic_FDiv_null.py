@@ -21,6 +21,7 @@ import sklearn
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import RobustScaler
 import kneed
 from kneed import KneeLocator
 import scipy.spatial
