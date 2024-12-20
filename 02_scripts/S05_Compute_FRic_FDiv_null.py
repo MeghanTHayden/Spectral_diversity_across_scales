@@ -229,19 +229,19 @@ for i in plots:
     print("FRic file uploaded to S3")
     
     # Calculate FDiv on PCA across window sizes
-    #print("Calculating FDiv")
-    #results_FD = {}
-    #local_file_path_fdiv = Out_Dir + "/" + SITECODE + "_fdiv_veg_null_" + str(i) + ".csv"
-    #window_batches = [(a, pca_x_random, results_FD, local_file_path_fdiv) for a in np.array_split(window_sizes, cpu_count() - 1) if a.any()]
-    #volumes = process_map(
-    #    window_calcs_fdiv,
-    #    window_batches,
-    #    max_workers=cpu_count() - 1
-    #)
+    print("Calculating FDiv")
+    results_FD = {}
+    local_file_path_fdiv = Out_Dir + "/" + SITECODE + "_fdiv_veg_null_" + str(i) + ".csv"
+    window_batches = [(a, pca_x_random, results_FD, local_file_path_fdiv) for a in np.array_split(window_sizes, cpu_count() - 1) if a.any()]
+    volumes = process_map(
+        window_calcs_fdiv,
+        window_batches,
+        max_workers=cpu_count() - 1
+    )
     # open file for writing
-    #destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_veg_null_" + str(i) + ".csv"
-    #upload_to_s3(bucket_name, local_file_path_fdiv, destination_s3_key_fdiv)
-    #print("FDiv file uploaded to S3")
+    destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_veg_null_" + str(i) + ".csv"
+    upload_to_s3(bucket_name, local_file_path_fdiv, destination_s3_key_fdiv)
+    print("FDiv file uploaded to S3")
 
     # Remove files to clear storage
     os.remove(file)
