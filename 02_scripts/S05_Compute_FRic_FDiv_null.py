@@ -152,33 +152,37 @@ for i in plots:
     print("Raster shape:", shape)
     
     # Process for PCA
-    # Flatten features into one dimesnion
-    dim1 = shape[1]
-    dim2 = shape[2]
-    bands = shape[0]
-    X = veg_np.reshape(bands,dim1*dim2).T
-    print(X.shape)
+    # Flatten features into one dimension
+    dim1, dim2, bands = shape[1], shape[2], shape[0]
+    X = veg_np.reshape(bands, dim1 * dim2).T
+    print("Shape of flattened array:", X.shape)
+
     # Set no data to nan
     X = X.astype('float32')
     X[np.isnan(X)] = np.nan
-    #X[X < 0] = np.nan
-    X[X <= 0] = np.nan
-    X = X/10000 # rescale data
-    # Impute values for NAs
-    imputer = SimpleImputer(missing_values=np.nan, strategy='mean')
+    X[X <= 0] = np.nan  # Adjust threshold if needed
+    print("Proportion of NaN values:", np.isnan(X).mean())
+
+    # Rescale data
+    X /= 10000
+
+    # Impute missing values
+    imputer = SimpleImputer(missing_values=np.nan, strategy='median')
     X_transformed = imputer.fit_transform(X)
-    # Scale & standardize array 
-    x_mean = X_transformed.mean(axis=0)[np.newaxis, :]
-    X_transformed -=x_mean
-    x_std = np.nanstd(X_transformed,axis=0)[np.newaxis, :]
-    X_transformed /=x_std
+
+    # Scale & standardize array
+    scaler = RobustScaler()
+    X_transformed = scaler.fit_transform(X_transformed)
+
     # Perform initial PCA fit
     print("Fitting PCA")
-    pca = PCA(n_components=comps) # set max number of components
+    pca = PCA(n_components=comps)
     pca.fit(X_transformed)
+    print("Explained variance ratio:", pca.explained_variance_ratio_)
+
     # PCA transform
-    pca_x =  pca.transform(X_transformed)
-    pca_x = pca_x.reshape((dim1, dim2,comps))
+    pca_x = pca.transform(X_transformed)
+    pca_x = pca_x.reshape((dim1, dim2, comps))
     print("PCA shape:", pca_x.shape)
 
     write_pca_to_raster(SITECODE, Data_Dir, pca_x)
@@ -190,9 +194,21 @@ for i in plots:
     pca_x_random = pca_x_flat.reshape(dim1, dim2, comps)  # Reshape back to original dimensions
     print("Randomization complete. Shape:", pca_x_random.shape)
 
-    write_pca_to_raster(SITECODE, Data_Dir, pca_x_random)
-    
     # Calculate FRic on PCA across window sizes
+    print("Calculating FRic")
+    results_FR = {}
+    local_file_path_fric = Out_Dir + "/" + SITECODE + "_fric_" + str(i) + ".csv"
+    window_batches = [(a, pca_x, results_FR, local_file_path_fric) for a in np.array_split(window_sizes, cpu_count() - 1) if a.any()]
+    volumes = process_map(
+        window_calcs,
+        window_batches,
+        max_workers=cpu_count() - 1
+    )
+    destination_s3_key_fric = "/" + SITECODE + "_fric_veg_" + str(i) + ".csv"
+    upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
+    print("FRic file uploaded to S3")
+
+    # Calculate FRic with randomly distributed pixels from PCA across window sizes
     print("Calculating FRic")
     results_FR = {}
     local_file_path_fric = Out_Dir + "/" + SITECODE + "_fric_null_" + str(i) + ".csv"
@@ -207,19 +223,19 @@ for i in plots:
     print("FRic file uploaded to S3")
     
     # Calculate FDiv on PCA across window sizes
-    print("Calculating FDiv")
-    results_FD = {}
-    local_file_path_fdiv = Out_Dir + "/" + SITECODE + "_fdiv_veg_null_" + str(i) + ".csv"
-    window_batches = [(a, pca_x_random, results_FD, local_file_path_fdiv) for a in np.array_split(window_sizes, cpu_count() - 1) if a.any()]
-    volumes = process_map(
-        window_calcs_fdiv,
-        window_batches,
-        max_workers=cpu_count() - 1
-    )
+    #print("Calculating FDiv")
+    #results_FD = {}
+    #local_file_path_fdiv = Out_Dir + "/" + SITECODE + "_fdiv_veg_null_" + str(i) + ".csv"
+    #window_batches = [(a, pca_x_random, results_FD, local_file_path_fdiv) for a in np.array_split(window_sizes, cpu_count() - 1) if a.any()]
+    #volumes = process_map(
+    #    window_calcs_fdiv,
+    #    window_batches,
+    #    max_workers=cpu_count() - 1
+    #)
     # open file for writing
-    destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_veg_null_" + str(i) + ".csv"
-    upload_to_s3(bucket_name, local_file_path_fdiv, destination_s3_key_fdiv)
-    print("FDiv file uploaded to S3")
+    #destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_veg_null_" + str(i) + ".csv"
+    #upload_to_s3(bucket_name, local_file_path_fdiv, destination_s3_key_fdiv)
+    #print("FDiv file uploaded to S3")
 
     # Remove files to clear storage
     os.remove(file)
