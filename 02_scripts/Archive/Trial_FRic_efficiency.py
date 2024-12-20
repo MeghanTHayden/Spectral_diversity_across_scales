@@ -61,9 +61,17 @@ def process_chunk(chunk, nan_mask):
     pca = PCA(n_components=comps)
     pca_transformed = pca.fit_transform(chunk_scaled)
 
+    # Reshape PCA output back to 3D (rows, cols, components)
+    rows = int(np.sqrt(chunk.shape[0]))  # Assuming square chunks
+    cols = rows
+    chunk_pca = pca_transformed.reshape((rows, cols, comps))
+
     # Reapply NaN mask
-    chunk_pca = pca_transformed.reshape((chunk.shape[0], -1, comps))
-    chunk_pca[nan_mask] = np.nan
+    nan_mask_reshaped = nan_mask.reshape(rows, cols)  # Reshape mask to match rows/cols
+    for i in range(comps):  # Apply mask to each PCA component
+        component = chunk_pca[:, :, i]
+        component[nan_mask_reshaped] = np.nan
+        chunk_pca[:, :, i] = component
 
     return chunk_pca
 
