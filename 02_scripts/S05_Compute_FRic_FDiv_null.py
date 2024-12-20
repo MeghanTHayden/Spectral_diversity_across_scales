@@ -59,7 +59,7 @@ from S01_Moving_Window_FDiv import *
 def write_pca_to_raster(SITECODE, Data_Dir, pca_x):
     # Define the output raster file name
     local_pca_raster_path = os.path.join(Out_Dir, f"{SITECODE}_pca_{i}.tif")
-    s3_pca_raster_key = f"/{SITECODE}_pca_{i}.tif"
+    s3_pca_raster_key = f"{SITECODE}_flightlines/{SITECODE}_pca_{i}.tif"
 
     # Write PCA to raster
     with rasterio.open(
