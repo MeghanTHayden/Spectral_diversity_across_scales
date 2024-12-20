@@ -162,6 +162,8 @@ for i in plots:
     X = X.astype('float32')
     X[np.isnan(X)] = np.nan
     X[X <= 0] = np.nan  # Adjust threshold if needed
+    # Save nan mask
+    nan_mask = np.isnan(X)
     print("Proportion of NaN values:", np.isnan(X).mean())
 
     # Rescale data
@@ -185,6 +187,9 @@ for i in plots:
     pca_x = pca.transform(X_transformed)
     pca_x = pca_x.reshape((dim1, dim2, comps))
     print("PCA shape:", pca_x.shape)
+
+    # Reapply NaN mask to all PCA components
+    pca_x[nan_mask.reshape(dim1, dim2, 1)] = np.nan
 
     write_pca_to_raster(SITECODE, Data_Dir, pca_x)
 
