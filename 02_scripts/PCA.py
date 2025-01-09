@@ -11,15 +11,17 @@ import gc
 import boto3
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
 import rasterio
-import rioxarray
+import rioxarray as rxr
 import numpy as np
 import sklearn
 from sklearn.decomposition import PCA
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import RobustScaler
 import requests
+from multiprocessing import Pool
 
-def identify_plots(SITECODE):
+
+def identify_plots(SITECODE, s3, bucket_name):
   # List mosaics for a site in the S3 bucket in the matching directory
   search_criteria = "Mosaic_"
   dirpath = SITECODE + "_flightlines/"
@@ -41,7 +43,7 @@ def identify_plots(SITECODE):
   
   return plots
 
-def load_data_and_mask(plot):
+def load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir):
   # Load data
   file_stem = SITECODE + '_flightlines/Mosaic_' + SITECODE + '_'
   clip_file = file_stem + str(plot) + '.tif' # Define file name in S3
@@ -61,6 +63,11 @@ def load_data_and_mask(plot):
   shape = veg_np.shape
   print("Raster shape:", shape)
 
+  # Flatten features into one dimension
+  dim1, dim2, bands = shape[1], shape[2], shape[0]
+  X = veg_np.reshape(bands, dim1 * dim2).T
+  print("Shape of flattened array:", X.shape)
+
   # Set no data to nan
   X = X.astype('float32')
   X[np.isnan(X)] = np.nan
@@ -75,12 +82,12 @@ def load_data_and_mask(plot):
   X /= 10000
 
   # Remove unnecessary files
-  os.remove(raster)
-  os.remove(veg_np)
+  os.remove(file)
+  del veg_np
 
-  return X, nan_mask, prop_na
+  return X, nan_mask, prop_na, dim1, dim2
 
-def perform_pca(X, nan_mask, ncomps = 3):
+def perform_pca(X, nan_mask, dim1, dim2, ncomps = 3):
   # Impute missing values
   imputer = SimpleImputer(missing_values=np.nan, strategy='median')
   X_transformed = imputer.fit_transform(X)
@@ -108,7 +115,7 @@ def perform_pca(X, nan_mask, ncomps = 3):
 
   return pca_x, var_explained
 
-def write_pca_to_raster(SITECODE, Data_Dir, bucket_name, pca_x, plot):
+def write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot):
     # Define the output raster file name
     local_pca_raster_path = os.path.join(Out_Dir, f"{SITECODE}_pca_{plot}.tif")
     s3_pca_raster_key = f"{SITECODE}_flightlines/{SITECODE}_pca_{plot}.tif"
@@ -141,7 +148,7 @@ def write_pca_to_raster(SITECODE, Data_Dir, bucket_name, pca_x, plot):
     os.remove(local_pca_raster_path)
     print(f"Local PCA raster removed: {local_pca_raster_path}")
 
-def write_plot_variables_to_csv(Out_Dir, SITECODE, results, bucket_name):
+def write_plot_variables_to_csv(Out_Dir, SITECODE, results,s3, bucket_name):
   # Export results to a CSV
   local_csv_path = os.path.join(Out_Dir, f"{SITECODE}_pca_summary.csv")
   with open(csv_path, mode='w', newline='') as csvfile:
@@ -158,6 +165,54 @@ def write_plot_variables_to_csv(Out_Dir, SITECODE, results, bucket_name):
   except ClientError as e:
       print(f"Error uploading csv to S3: {e}")
 
+def process_plot(SITECODE, plot, Data_Dir, Out_Dir, bucket_name):
+    s3 = boto3.client('s3')
+    try:
+        X, nan_mask, prop_na, dim1, dim2  = load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir)
+        pca_x, var_explained = perform_pca(X, nan_mask, dim1, dim2, ncomps=3)
+
+        # Write PCA raster
+        write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot)
+        
+        # Return plot-level results
+        return {
+                "SITECODE": SITECODE,
+                "Plot": plot,
+                "Proportion_NaN": prop_na,
+                "Explained_Variance": var_explained.tolist()
+                }
+    except Exception as e:
+        print(f"Error processing plot {plot}: {e}")
+        return None
+
+def parallel_pca_workflow(SITECODE):
+    # Define variables
+    Data_Dir = '/home/ec2-user/BioSCape_across_scales/01_data/02_processed'
+    Out_Dir = '/home/ec2-user/BioSCape_across_scales/03_output'
+    bucket_name = 'bioscape.gra'
+    s3 = boto3.client('s3')
+
+    # Get list of plots
+    plots = identify_plots(SITECODE, s3, bucket_name)
+
+    # Prepare arguments for multiprocessing
+    args = [(SITECODE, plot, Data_Dir, Out_Dir, bucket_name) for plot in plots]
+
+    # Process plots in parallel
+    cpus = os.cpu_count() - 1
+    with Pool(processes=cpus) as pool:  # Adjust the number of processes based on available CPUs
+                results = pool.starmap(process_plot, args)
+
+    # Filter out any failed results
+    results = [res for res in results if res is not None]
+
+    # Write results to csv
+    s3 = boto3.client('s3')
+    write_plot_variables_to_csv(Out_Dir, SITECODE, results, s3, bucket_name)
+
+    print(f"PCA processing complete for {SITECODE}")
+
+
 def pca_workflow(SITECODE):
   # Set directories
   Data_Dir = '/home/ec2-user/BioSCape_across_scales/01_data/02_processed'
@@ -168,18 +223,18 @@ def pca_workflow(SITECODE):
   # List to store plot level variables
   results = []
   
-  plots = identity_plots(SITECODE)
+  plots = identify_plots(SITECODE, s3, bucket_name)
   for plot in plots:
-    X, nan_mask, prop_na = load_data_and_mask(plot)
-    pca_x, var_explained = perform_pca(X, nan_mask, ncomps = 3)
+    X, nan_mask, prop_na,dim1,dim2 = load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir)
+    pca_x, var_explained = perform_pca(X, nan_mask, dim1, dim2, ncomps = 3)
     results.append({
         "SITECODE": SITECODE,
         "plot": plot,
         "Proportion_NaN": prop_na,
         "Explained_Variance": var_explained.tolist()  # Convert to list for CSV
     })
-    write_pca_to_raster(SITECODE, Data_Dir, bucket_name, pca_x, plot)
-    write_plot_variables_to_csv(Out_Dir, SITECODE, results, bucket_name)
+    write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot)
+    write_plot_variables_to_csv(Out_Dir, SITECODE, results, s3, bucket_name)
     
     # Clear unnecessary variables from memory
     del X, nan_mask, prop_na, pca_x, var_explained
@@ -190,5 +245,6 @@ def pca_workflow(SITECODE):
 # Example usage
 if __name__ == "__main__":
     
-    pca_workflow(SITECODE)
+    #pca_workflow(SITECODE)
+    parallel_pca_workflow(SITECODE)
     
