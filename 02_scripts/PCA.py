@@ -50,12 +50,12 @@ def load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir):
   print(clip_file)
   
   # Download plot mosaic
-  s3.download_file(bucket_name, clip_file, Data_Dir + '/mosaic.tif')
-  file = Data_Dir + '/mosaic.tif' # Define local file name
-  print("Raster loaded")
+  local_file = f"{Data_Dir}/mosaic_{plot}.tif"
+  s3.download_file(bucket_name, clip_file, local_file)
+  print(f"Raster downloaded to {local_file}")
   
   # Open as raster
-  raster = rxr.open_rasterio(file, masked=True)
+  raster = rxr.open_rasterio(local_file, masked=True)
   print(raster)
   
   # Convert data array to numpy array
@@ -82,7 +82,7 @@ def load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir):
   X /= 10000
 
   # Remove unnecessary files
-  os.remove(file)
+  os.remove(local_file)
   del veg_np
 
   return X, nan_mask, prop_na, dim1, dim2
@@ -199,8 +199,7 @@ def parallel_pca_workflow(SITECODE):
     args = [(SITECODE, plot, Data_Dir, Out_Dir, bucket_name) for plot in plots]
 
     # Process plots in parallel
-    cpus = os.cpu_count() - 1
-    with Pool(processes=cpus) as pool:  # Adjust the number of processes based on available CPUs
+    with Pool(processes=3) as pool:  # Adjust the number of processes based on available CPUs
                 results = pool.starmap(process_plot, args)
 
     # Filter out any failed results
