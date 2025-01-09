@@ -97,7 +97,9 @@ s3 = boto3.client('s3')
 
 # Set global parameters #
 # window_sizes = [10, 30, 60, 120]   # smaller list of window sizes to test
-window_sizes = [60, 120, 240, 480, 960, 1200, 1500, 2000, 2200] # full list of window size for computations
+#window_sizes = [60, 120, 240, 480, 960, 1200, 1500, 2000, 2200] # full list of window size for computations
+window_sizes = [60, 90, 130, 195, 285, 420, 620, 920, 1350, 2000] # logarithmically spaced
+
 comps = 3 # number of components for PCA
 
 # Use arg parse for local variables
