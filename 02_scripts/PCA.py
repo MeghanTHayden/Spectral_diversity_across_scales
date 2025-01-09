@@ -152,11 +152,11 @@ def write_plot_variables_to_csv(Out_Dir, SITECODE, results, bucket_name):
 
   # Upload the file to S3
   s3_csv_key = f"{SITECODE}_flightlines/{SITECODE}_pca_summary.csv"
-    try:
-        s3.upload_file(local_csv_path, bucket_name, s3_csv_key)
-        print(f"PCA csv uploaded to S3: {s3_csv_key}")
-    except ClientError as e:
-        print(f"Error uploading csv to S3: {e}")
+  try:
+      s3.upload_file(local_csv_path, bucket_name, s3_csv_key)
+      print(f"PCA csv uploaded to S3: {s3_csv_key}")
+  except ClientError as e:
+      print(f"Error uploading csv to S3: {e}")
 
 def pca_workflow(SITECODE):
   # Set directories
