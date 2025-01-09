@@ -13,7 +13,10 @@ from botocore.exceptions import NoCredentialsError, PartialCredentialsError, Cli
 import rasterio
 import rioxarray
 import numpy as np
-import scikit-learn
+import sklearn
+from sklearn.decomposition import PCA
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import RobustScaler
 import requests
 
 def identify_plots(SITECODE):
