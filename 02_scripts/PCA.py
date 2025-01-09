@@ -141,7 +141,7 @@ def write_pca_to_raster(SITECODE, Data_Dir, bucket_name, pca_x, plot):
     os.remove(local_pca_raster_path)
     print(f"Local PCA raster removed: {local_pca_raster_path}")
 
-write_plot_variables_to_csv(Out_Dir, SITECODE, results, bucket_name):
+def write_plot_variables_to_csv(Out_Dir, SITECODE, results, bucket_name):
   # Export results to a CSV
   local_csv_path = os.path.join(Out_Dir, f"{SITECODE}_pca_summary.csv")
   with open(csv_path, mode='w', newline='') as csvfile:
