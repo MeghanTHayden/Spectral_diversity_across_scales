@@ -17,6 +17,7 @@ import sklearn
 from sklearn.decomposition import PCA
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import RobustScaler
+from sklearn.decomposition import IncrementalPCA
 import requests
 from multiprocessing import Pool
 from sklearn.pipeline import Pipeline
@@ -99,13 +100,14 @@ def perform_pca(X, nan_mask, dim1, dim2, ncomps = 3):
   print("Scaling data...")
   #scaler = RobustScaler()
   #X_transformed = scaler.fit_transform(X_transformed)
+  
+  # Combine in one step
   pipeline = Pipeline([
           ('imputer', SimpleImputer(missing_values = np.nan,strategy='median')),
               ('scaler', RobustScaler())
               ])
 
   X_transformed = pipeline.fit_transform(X)
-
 
   # Perform initial PCA fit
   print("Fitting PCA")
@@ -125,6 +127,40 @@ def perform_pca(X, nan_mask, dim1, dim2, ncomps = 3):
       pca_x[:, :, i][nan_mask_reshaped] = np.nan
 
   return pca_x, var_explained
+
+def perform_pca_chunks(X, nan_mask, dim1, dim2, ncomps = 3):
+  chunk_size = 10000
+  ipca = IncrementalPCA(n_components=ncomps)
+  pipeline = Pipeline([
+          ('imputer', SimpleImputer(missing_values = np.nan,strategy='median')),
+              ('scaler', RobustScaler())
+              ])
+  for start in range(0, len(X), chunk_size):
+    end = start + chunk_size
+    X_chunk = X[start:end]
+    X_chunk_transformed = pipeline.transform(X_chunk)
+    ipca.partial_fit(X_chunk_transformed)
+
+  pca_results = []
+  for chunk in chunks:
+    chunk_imputed = imputer.transform(chunk)
+    chunk_scaled = scaler.transform(chunk_imputed)
+    chunk_pca = ipca.transform(chunk_scaled)
+    pca_results.append(chunk_pca)
+
+  # Combine PCA-transformed chunks
+  combined_pca_results = np.vstack(pca_results)
+
+  # Reshape PCA-transformed data to match original dimensions
+  pca_reshaped = combined_pca_results.reshape(dim1, dim2, ncomps)
+
+  # Reapply NaN mask to each PCA component
+  nan_mask_reshaped = nan_mask[:, 0].reshape(dim1, dim2)
+  for i in range(ncomps):
+      pca_reshaped[:, :, i][nan_mask_reshaped] = np.nan
+
+  # Return PCA results and variance explained
+  return pca_reshaped, ipca.explained_variance_ratio_
 
 def write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot, crs, transform):
     # Define the output raster file name
@@ -176,25 +212,6 @@ def write_plot_variables_to_csv(Out_Dir, SITECODE, results,s3, bucket_name):
   except ClientError as e:
       print(f"Error uploading csv to S3: {e}")
 
-def process_plot(SITECODE, plot, Data_Dir, Out_Dir, bucket_name):
-    s3 = boto3.client('s3')
-    try:
-        X, nan_mask, prop_na, dim1, dim2  = load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir)
-        pca_x, var_explained = perform_pca(X, nan_mask, dim1, dim2, ncomps=3)
-
-        # Write PCA raster
-        write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot)
-        
-        # Return plot-level results
-        return {
-                "SITECODE": SITECODE,
-                "Plot": plot,
-                "Proportion_NaN": prop_na,
-                "Explained_Variance": var_explained.tolist()
-                }
-    except Exception as e:
-        print(f"Error processing plot {plot}: {e}")
-        return None
 
 def parallel_pca_workflow(SITECODE):
     # Define variables
@@ -236,7 +253,7 @@ def pca_workflow(SITECODE):
   plots = identify_plots(SITECODE, s3, bucket_name)
   for plot in plots:
     X, nan_mask, prop_na,dim1,dim2,crs,transform = load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir)
-    pca_x, var_explained = perform_pca(X, nan_mask, dim1, dim2, ncomps = 3)
+    pca_x, var_explained = perform_pca_chunks(X, nan_mask, dim1, dim2, ncomps = 3)
     results.append({
         "SITECODE": SITECODE,
         "plot": plot,
