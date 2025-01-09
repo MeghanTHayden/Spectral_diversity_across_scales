@@ -19,7 +19,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import RobustScaler
 import requests
 from multiprocessing import Pool
-
+from sklearn.pipeline import Pipeline
 
 def identify_plots(SITECODE, s3, bucket_name):
   # List mosaics for a site in the S3 bucket in the matching directory
@@ -56,6 +56,8 @@ def load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir):
   
   # Open as raster
   raster = rxr.open_rasterio(local_file, masked=True)
+  crs = raster.rio.crs
+  transform = raster.rio.transform()
   print(raster)
   
   # Convert data array to numpy array
@@ -85,16 +87,25 @@ def load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir):
   os.remove(local_file)
   del veg_np
 
-  return X, nan_mask, prop_na, dim1, dim2
+  return X, nan_mask, prop_na, dim1, dim2, crs, transform
 
 def perform_pca(X, nan_mask, dim1, dim2, ncomps = 3):
   # Impute missing values
-  imputer = SimpleImputer(missing_values=np.nan, strategy='median')
-  X_transformed = imputer.fit_transform(X)
+  print("Imputing missing values...")
+  #imputer = SimpleImputer(missing_values=np.nan, strategy='median')
+  #X_transformed = imputer.fit_transform(X)
 
   # Scale & standardize array
-  scaler = RobustScaler()
-  X_transformed = scaler.fit_transform(X_transformed)
+  print("Scaling data...")
+  #scaler = RobustScaler()
+  #X_transformed = scaler.fit_transform(X_transformed)
+  pipeline = Pipeline([
+          ('imputer', SimpleImputer(missing_values = np.nan,strategy='median')),
+              ('scaler', RobustScaler())
+              ])
+
+  X_transformed = pipeline.fit_transform(X)
+
 
   # Perform initial PCA fit
   print("Fitting PCA")
@@ -105,17 +116,17 @@ def perform_pca(X, nan_mask, dim1, dim2, ncomps = 3):
 
   # PCA transform
   pca_x = pca.transform(X_transformed)
-  pca_x = pca_x.reshape((dim1, dim2, comps))
+  pca_x = pca_x.reshape((dim1, dim2, ncomps))
   print("PCA shape:", pca_x.shape)
 
   # Reapply NaN mask
   nan_mask_reshaped = nan_mask[:, 0].reshape(dim1, dim2)  # Ensure mask matches raster dimensions
-  for i in range(comps):  # Apply mask to each PCA component
+  for i in range(ncomps):  # Apply mask to each PCA component
       pca_x[:, :, i][nan_mask_reshaped] = np.nan
 
   return pca_x, var_explained
 
-def write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot):
+def write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot, crs, transform):
     # Define the output raster file name
     local_pca_raster_path = os.path.join(Out_Dir, f"{SITECODE}_pca_{plot}.tif")
     s3_pca_raster_key = f"{SITECODE}_flightlines/{SITECODE}_pca_{plot}.tif"
@@ -129,8 +140,8 @@ def write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plo
         width=pca_x.shape[1],
         count=pca_x.shape[2],  # Number of components as raster bands
         dtype="float32",
-        crs=raster.rio.crs,  # Use CRS from the original raster
-        transform=raster.rio.transform(),  # Use transform from the original raster
+        crs=crs,  # Use CRS from the original raster
+        transform=transform,  # Use transform from the original raster
     ) as dst:
         for band in range(pca_x.shape[2]):  # Loop through PCA components
             dst.write(pca_x[:, :, band], band + 1)
@@ -151,7 +162,7 @@ def write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plo
 def write_plot_variables_to_csv(Out_Dir, SITECODE, results,s3, bucket_name):
   # Export results to a CSV
   local_csv_path = os.path.join(Out_Dir, f"{SITECODE}_pca_summary.csv")
-  with open(csv_path, mode='w', newline='') as csvfile:
+  with open(local_csv_path, mode='w', newline='') as csvfile:
       writer = csv.DictWriter(csvfile, fieldnames=["SITECODE", "Plot", "Proportion_NaN", "Explained_Variance"])
       writer.writeheader()
       for row in results:
@@ -224,7 +235,7 @@ def pca_workflow(SITECODE):
   
   plots = identify_plots(SITECODE, s3, bucket_name)
   for plot in plots:
-    X, nan_mask, prop_na,dim1,dim2 = load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir)
+    X, nan_mask, prop_na,dim1,dim2,crs,transform = load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir)
     pca_x, var_explained = perform_pca(X, nan_mask, dim1, dim2, ncomps = 3)
     results.append({
         "SITECODE": SITECODE,
@@ -232,7 +243,7 @@ def pca_workflow(SITECODE):
         "Proportion_NaN": prop_na,
         "Explained_Variance": var_explained.tolist()  # Convert to list for CSV
     })
-    write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot)
+    write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot, crs, transform)
     write_plot_variables_to_csv(Out_Dir, SITECODE, results, s3, bucket_name)
     
     # Clear unnecessary variables from memory
@@ -243,7 +254,7 @@ def pca_workflow(SITECODE):
  
 # Example usage
 if __name__ == "__main__":
-    
-    #pca_workflow(SITECODE)
-    parallel_pca_workflow(SITECODE)
+
+    pca_workflow(SITECODE)
+   #parallel_pca_workflow(SITECODE)
     
