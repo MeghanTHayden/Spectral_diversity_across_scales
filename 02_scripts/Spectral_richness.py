@@ -12,9 +12,9 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import RobustScaler
 import requests
 from multiprocessing import Pool
-from S01_Functions import *
+#from S01_Functions import *
 from S01_Moving_Window_FRIC import *
-from S01_Moving_Window_FDiv import *
+#from S01_Moving_Window_FDiv import *
 
 def identify_plots(SITECODE, s3, bucket_name):
   # List pcas for a site in the S3 bucket in the matching directory
@@ -85,7 +85,8 @@ def calculate_fric(SITECODE, plot, pca_x, window_sizes, bucket_name):
        max_workers=cpu_count() - 1
    )
   destination_s3_key_fric = "/" + SITECODE + "_specdiv_" + str(plot) + ".csv"
-  upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
+  s3 = boto3.client('s3')
+  s3.upload_file(local_file_path_fric, bucket_name, destination_s3_key_fric)
   print("FRic file uploaded to S3")
 
 def calculate_fric_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name):
@@ -100,13 +101,14 @@ def calculate_fric_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name)
        max_workers=cpu_count() - 1
    )
   destination_s3_key_fric = "/" + SITECODE + "_specdiv_null_" + str(plot) + ".csv"
-  upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
+  s3 = boto3.client('s3')
+  s3.upload_file(local_file_path_fric, bucket_name, destination_s3_key_fric)
   print("Null FRic file uploaded to S3")
 
 def process_spectral_richness(SITECODE):
   # Set directories
-  Data_Dir = '/home/ec2-user/BioSCape_across_scales/01_data/02_processed'
-  Out_Dir = '/home/ec2-user/BioSCape_across_scales/03_output'
+  Data_Dir = '/home/ec2-user/Functional_diversity_across_scales/01_data'
+  Out_Dir = '/home/ec2-user/Functional_diversity_across_scales/02_output'
   bucket_name = 'bioscape.gra'
   s3 = boto3.client('s3')
 
