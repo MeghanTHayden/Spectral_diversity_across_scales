@@ -45,6 +45,7 @@ def identify_plots(SITECODE, s3, bucket_name):
   return plots
 
 def load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir):
+  print("Loading plot:", plot)
   # Load data
   file_stem = SITECODE + '_flightlines/Mosaic_' + SITECODE + '_'
   clip_file = file_stem + str(plot) + '.tif' # Define file name in S3
@@ -215,8 +216,8 @@ def write_plot_variables_to_csv(Out_Dir, SITECODE, results,s3, bucket_name):
 
 def parallel_pca_workflow(SITECODE):
     # Define variables
-    Data_Dir = '/home/ec2-user/BioSCape_across_scales/01_data/02_processed'
-    Out_Dir = '/home/ec2-user/BioSCape_across_scales/03_output'
+    Data_Dir = '/home/ec2-user/Functional_diversity_across_scales/01_data'
+    Out_Dir = '/home/ec2-user/Functional_diversity_across_scales/02_output'
     bucket_name = 'bioscape.gra'
     s3 = boto3.client('s3')
 
@@ -242,8 +243,8 @@ def parallel_pca_workflow(SITECODE):
 
 def pca_workflow(SITECODE):
   # Set directories
-  Data_Dir = '/home/ec2-user/BioSCape_across_scales/01_data/02_processed'
-  Out_Dir = '/home/ec2-user/BioSCape_across_scales/03_output'
+  Data_Dir = '/home/ec2-user/Functional_diversity_across_scales/01_data'
+  Out_Dir = '/home/ec2-user/Functional_diversity_across_scales/02_output'
   bucket_name = 'bioscape.gra'
   s3 = boto3.client('s3')
 
