@@ -9,6 +9,7 @@ import os
 import re
 import gc
 import boto3
+import csv
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
 import rasterio
 import rioxarray as rxr
@@ -136,17 +137,27 @@ def perform_pca_chunks(X, nan_mask, dim1, dim2, ncomps = 3):
           ('imputer', SimpleImputer(missing_values = np.nan,strategy='median')),
               ('scaler', RobustScaler())
               ])
+  # Fitting IPCA
+  print("Fitting IPCA")
   for start in range(0, len(X), chunk_size):
     end = start + chunk_size
     X_chunk = X[start:end]
-    X_chunk_transformed = pipeline.transform(X_chunk)
+    if X_chunk.shape[1] == 0:
+        print(f"Chunk with shape {X_chunk.shape} has no valid features. Skipping.")
+        continue
+    X_chunk_transformed = pipeline.fit_transform(X_chunk)
     ipca.partial_fit(X_chunk_transformed)
-
+  # Tranforming IPCA
+  print("Transforming IPCA")
   pca_results = []
-  for chunk in chunks:
-    chunk_imputed = imputer.transform(chunk)
-    chunk_scaled = scaler.transform(chunk_imputed)
-    chunk_pca = ipca.transform(chunk_scaled)
+  for start in range(0, len(X), chunk_size):
+    end = start + chunk_size
+    X_chunk = X[start:end]
+    if X_chunk.shape[1] == 0:
+        print(f"Chunk with shape {X_chunk.shape} has no valid features. Skipping.")
+        continue
+    X_chunk_transformed = pipeline.transform(X_chunk)
+    chunk_pca = ipca.transform(X_chunk_transformed)
     pca_results.append(chunk_pca)
 
   # Combine PCA-transformed chunks
@@ -161,6 +172,8 @@ def perform_pca_chunks(X, nan_mask, dim1, dim2, ncomps = 3):
       pca_reshaped[:, :, i][nan_mask_reshaped] = np.nan
 
   # Return PCA results and variance explained
+  print("PCA processing complete")
+  print(f"PCA explained variance:{ipca_explained_variance_ratio_}")
   return pca_reshaped, ipca.explained_variance_ratio_
 
 def write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot, crs, transform):
@@ -200,7 +213,7 @@ def write_plot_variables_to_csv(Out_Dir, SITECODE, results,s3, bucket_name):
   # Export results to a CSV
   local_csv_path = os.path.join(Out_Dir, f"{SITECODE}_pca_summary.csv")
   with open(local_csv_path, mode='w', newline='') as csvfile:
-      writer = csv.DictWriter(csvfile, fieldnames=["SITECODE", "Plot", "Proportion_NaN", "Explained_Variance"])
+      writer = csv.DictWriter(csvfile, fieldnames=["SITECODE", "plot", "Proportion_NaN", "Explained_Variance"])
       writer.writeheader()
       for row in results:
           writer.writerow(row)
@@ -254,7 +267,7 @@ def pca_workflow(SITECODE):
   plots = identify_plots(SITECODE, s3, bucket_name)
   for plot in plots:
     X, nan_mask, prop_na,dim1,dim2,crs,transform = load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir)
-    pca_x, var_explained = perform_pca_chunks(X, nan_mask, dim1, dim2, ncomps = 3)
+    pca_x, var_explained = perform_pca(X, nan_mask, dim1, dim2, ncomps = 3)
     results.append({
         "SITECODE": SITECODE,
         "plot": plot,
@@ -262,12 +275,12 @@ def pca_workflow(SITECODE):
         "Explained_Variance": var_explained.tolist()  # Convert to list for CSV
     })
     write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot, crs, transform)
-    write_plot_variables_to_csv(Out_Dir, SITECODE, results, s3, bucket_name)
-    
+   
     # Clear unnecessary variables from memory
     del X, nan_mask, prop_na, pca_x, var_explained
     gc.collect()  # Trigger garbage collection
-
+  
+  write_plot_variables_to_csv(Out_Dir, SITECODE, results, s3, bucket_name)
   print(f"PCA processing complete for {SITECODE}")
  
 # Example usage
