@@ -110,7 +110,7 @@ def process_spectral_richness(SITECODE):
   plots = identify_plots(SITECODE, s3, bucket_name)
   for plot in plots:
     pca_x = load_pca(SITECODE, plot, s3, bucket_name, Data_Dir)
-    pca_x_random = randomize_pca(pca_x)
+    pca_x_random = randomize_pixels(pca_x)
     calculate_fric(SITECODE, plot, pca_x, window_sizes, bucket_name)
     calculate_fric_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name)
 

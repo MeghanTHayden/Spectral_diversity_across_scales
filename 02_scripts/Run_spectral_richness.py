@@ -19,6 +19,8 @@ sites = ['HEAL',
         'WREF',
         'YELL']
 
+sites = ['HEAL']
+
 for site in sites:
-  PCA.pca_workflow(site)
+  #PCA.pca_workflow(site)
   Spectral_richness.process_spectral_richness(site)
