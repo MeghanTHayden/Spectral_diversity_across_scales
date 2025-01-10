@@ -53,10 +53,9 @@ def window_calcs(args):
             for j in range(half_window, pca_chunk.shape[1] - half_window, 25):
                 hull = None
                 sub_arr = pca_chunk[i - half_window:i + half_window + 1, j - half_window:j + half_window + 1, :]
-                #print(sub_arr.shape)
+                sub_arr = sub_arr.reshape((-1, comps))
                 # Remove NA values
                 sub_arr = sub_arr[~np.isnan(sub_arr).any(axis=1)]
-                sub_arr = sub_arr.reshape((-1, comps))
                 #print(i,j)
                 #print(sub_arr.shape)
                 mean_arr = np.nanmean(sub_arr, axis=0)
