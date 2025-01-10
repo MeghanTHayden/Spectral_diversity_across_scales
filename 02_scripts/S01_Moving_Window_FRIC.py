@@ -6,15 +6,15 @@ Created on Mon Jul 17 10:25:17 2023
 @author: meha3816
 """
 ## Load necessary packages ##
-import hytools as ht
-import matplotlib.pyplot as plt
+#import hytools as ht
+#import matplotlib.pyplot as plt
 import numpy as np
 import requests
 import sklearn
-from sklearn.cluster import KMeans
+#from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
-import kneed
-from kneed import KneeLocator
+#import kneed
+#from kneed import KneeLocator
 import scipy.spatial
 from scipy.spatial import ConvexHull
 import subprocess
