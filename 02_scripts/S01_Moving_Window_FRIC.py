@@ -54,6 +54,8 @@ def window_calcs(args):
                 hull = None
                 sub_arr = pca_chunk[i - half_window:i + half_window + 1, j - half_window:j + half_window + 1, :]
                 #print(sub_arr.shape)
+                # Remove NA values
+                sub_arr = sub_arr[~np.isnan(sub_arr).any(axis=1)]
                 sub_arr = sub_arr.reshape((-1, comps))
                 #print(i,j)
                 #print(sub_arr.shape)
