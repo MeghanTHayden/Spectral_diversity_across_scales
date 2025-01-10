@@ -55,17 +55,20 @@ def load_pca(SITECODE, plot, s3, bucket_name, Data_Dir):
 
   # Convert to numpy array
   pca_x = raster.to_numpy()
-  shape = pca_x.shape
-  print("Raster shape:", shape)
+  print("Raster shape:", pca_x.shape)
+  pca_x = np.moveaxis(pca_x, 0, -1)
+  print("Reformatted shape:", pca_x.shape)
 
   return pca_x
 
 def randomize_pixels(pca_x):
   # Randomize pixels to remove spatial organization
   print("Randomizing pixels for null distribution...")
-  pca_x_flat = pca_x.reshape(-1, comps)  # Flatten PCA array to 2D (n_pixels, n_components)
+  shape = pca_x.shape
+  dim1, dim2, ncomps = shape[0], shape[1], shape[2]
+  pca_x_flat = pca_x.reshape(-1, ncomps)  # Flatten PCA array to 2D (n_pixels, n_components)
   np.random.shuffle(pca_x_flat)          # Shuffle rows randomly
-  pca_x_random = pca_x_flat.reshape(dim1, dim2, comps)  # Reshape back to original dimensions
+  pca_x_random = pca_x_flat.reshape(dim1, dim2,ncomps)  # Reshape back to original dimensions
   print("Randomization complete. Shape:", pca_x_random.shape)
 
   return pca_x_random
@@ -106,6 +109,9 @@ def process_spectral_richness(SITECODE):
   Out_Dir = '/home/ec2-user/BioSCape_across_scales/03_output'
   bucket_name = 'bioscape.gra'
   s3 = boto3.client('s3')
+
+  # Define window sizes
+  window_sizes = [60, 90, 130, 195, 285, 420, 620, 920, 1355, 2000]
 
   plots = identify_plots(SITECODE, s3, bucket_name)
   for plot in plots:
