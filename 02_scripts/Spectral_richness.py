@@ -81,9 +81,9 @@ def calculate_fric(SITECODE, plot, pca_x, window_sizes, bucket_name):
        window_batches,
        max_workers=cpu_count() - 1
    )
-   destination_s3_key_fric = "/" + SITECODE + "_specdiv_" + str(plot) + ".csv"
-   upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
-   print("FRic file uploaded to S3")
+  destination_s3_key_fric = "/" + SITECODE + "_specdiv_" + str(plot) + ".csv"
+  upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
+  print("FRic file uploaded to S3")
 
 def calculate_fric_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name):
   # Calculate FRic on PCA across window sizes
@@ -96,9 +96,9 @@ def calculate_fric_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name)
        window_batches,
        max_workers=cpu_count() - 1
    )
-   destination_s3_key_fric = "/" + SITECODE + "_specdiv_null_" + str(plot) + ".csv"
-   upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
-   print("Null FRic file uploaded to S3")
+  destination_s3_key_fric = "/" + SITECODE + "_specdiv_null_" + str(plot) + ".csv"
+  upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
+  print("Null FRic file uploaded to S3")
 
 def process_spectral_richness(SITECODE):
   # Set directories
