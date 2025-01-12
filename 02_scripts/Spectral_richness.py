@@ -11,10 +11,10 @@ from sklearn.decomposition import PCA
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import RobustScaler
 import requests
-from multiprocessing import Pool
-from S01_Functions import *
+from multiprocessing import Pool, cpu_count
+#from S01_Functions import *
 from S01_Moving_Window_FRIC import *
-from S01_Moving_Window_FDiv import *
+#from S01_Moving_Window_FDiv import *
 
 def identify_plots(SITECODE, s3, bucket_name):
   # List pcas for a site in the S3 bucket in the matching directory
