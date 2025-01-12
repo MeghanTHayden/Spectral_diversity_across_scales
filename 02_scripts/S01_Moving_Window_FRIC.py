@@ -56,23 +56,16 @@ def window_calcs(args):
                 sub_arr = sub_arr.reshape((-1, comps))
                 # Remove NA values
                 sub_arr = sub_arr[~np.isnan(sub_arr).any(axis=1)]
-                #print(i,j)
-                #print(sub_arr.shape)
-                mean_arr = np.nanmean(sub_arr, axis=0)
-                #print(mean_arr)
-                non_zero_indices = np.nonzero(mean_arr)[0]
-                #print(non_zero_indices)
-                if len(non_zero_indices) >= 3:
+                print(sub_arr.shape)
+                if sub_arr.shape[0] >= 4:
                     try:
                         if hull is None:
-                            #print(sub_arr[:,non_zero_indices])
                             hull = ConvexHull(sub_arr)
-                        #fric[i, j] = hull.volume
-                        #print(hull.volume)
-                        #print(fric)
+                            window_data.append([window, hull.volume])
                     except scipy.spatial.qhull.QhullError as e:
                         continue
-                window_data.append([window, hull.volume])
+                else:
+                    print(f"Insufficient points for ConvexHull at ({i}, {j}) with window size {window}")
         print(f"Hull volumes for window size {window}: {np.unique(fric)}")
         #results_FR[window] = fric.tolist()
 
