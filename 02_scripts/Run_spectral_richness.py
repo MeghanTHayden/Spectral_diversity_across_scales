@@ -1,14 +1,15 @@
 import PCA
 import Spectral_richness
 
-sites = ['HEAL',
-        'BART',
-        'CLBJ',
-        'KONZ',
-        'NIWO',
-        'ONAQ',
-        'OSBS',
-        'PUUM',
+sites = [
+       # 'HEAL',
+       # 'BART',
+       # 'CLBJ',
+       # 'KONZ',
+       # 'NIWO',
+       # 'ONAQ',
+       # 'OSBS',
+       # 'PUUM',
         'SERC',
         'SRER',
         'TALL',
@@ -19,8 +20,6 @@ sites = ['HEAL',
         'WREF',
         'YELL']
 
-sites = ['HEAL']
-
 for site in sites:
-  #PCA.pca_workflow(site)
+  PCA.pca_workflow(site)
   Spectral_richness.process_spectral_richness(site)
