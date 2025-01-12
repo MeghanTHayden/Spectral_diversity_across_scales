@@ -71,6 +71,10 @@ def randomize_pixels(pca_x):
   pca_x_random = pca_x_flat.reshape(dim1, dim2,ncomps)  # Reshape back to original dimensions
   print("Randomization complete. Shape:", pca_x_random.shape)
 
+  # Verify randomization
+  print(f"Original data sample: {pca_x.flatten()[:10]}")
+  print(f"Randomized data sample: {pca_x_random.flatten()[:10]}")
+
   return pca_x_random
 
 def calculate_fric(SITECODE, plot, pca_x, window_sizes, bucket_name):
@@ -91,16 +95,16 @@ def calculate_fric(SITECODE, plot, pca_x, window_sizes, bucket_name):
 def calculate_fric_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name):
   # Calculate FRic on PCA across window sizes
   print("Calculating FRic")
-  results_FR = {}
-  local_file_path_fric = Out_Dir + "/" + SITECODE + "_fric_" + str(plot) + ".csv"
-  window_batches = [(a, pca_x_random, results_FR, local_file_path_fric) for a in np.array_split(window_sizes, cpu_count() - 1) if a.any()]
+  results_FR_null = {}
+  local_file_path_fric_null = Out_Dir + "/" + SITECODE + "_fric_null_" + str(plot) + ".csv"
+  window_batches = [(a, pca_x_random, results_FR_null, local_file_path_fric_null) for a in np.array_split(window_sizes, cpu_count() - 1) if a.any()]
   volumes = process_map(
        window_calcs,
        window_batches,
        max_workers=cpu_count() - 1
    )
   destination_s3_key_fric = "/" + SITECODE + "_specdiv_null_" + str(plot) + ".csv"
-  upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
+  upload_to_s3(bucket_name, local_file_path_fric_null, destination_s3_key_fric)
   print("Null FRic file uploaded to S3")
 
 def process_spectral_richness(SITECODE):
