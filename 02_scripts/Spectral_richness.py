@@ -11,7 +11,8 @@ from sklearn.decomposition import PCA
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import RobustScaler
 import requests
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
+from tqdm.contrib.concurrent import process_map
 #from S01_Functions import *
 from S01_Moving_Window_FRIC import *
 #from S01_Moving_Window_FDiv import *
@@ -73,7 +74,7 @@ def randomize_pixels(pca_x):
 
   return pca_x_random
 
-def calculate_fric(SITECODE, plot, pca_x, window_sizes, bucket_name):
+def calculate_fric(SITECODE, plot, pca_x, window_sizes, bucket_name, Out_Dir):
   # Calculate FRic on PCA across window sizes
   print("Calculating FRic")
   results_FR = {}
@@ -89,7 +90,7 @@ def calculate_fric(SITECODE, plot, pca_x, window_sizes, bucket_name):
   s3.upload_file(local_file_path_fric, bucket_name, destination_s3_key_fric)
   print("FRic file uploaded to S3")
 
-def calculate_fric_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name):
+def calculate_fric_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name, Out_Dir):
   # Calculate FRic on PCA across window sizes
   print("Calculating FRic")
   results_FR = {}
@@ -119,8 +120,8 @@ def process_spectral_richness(SITECODE):
   for plot in plots:
     pca_x = load_pca(SITECODE, plot, s3, bucket_name, Data_Dir)
     pca_x_random = randomize_pixels(pca_x)
-    calculate_fric(SITECODE, plot, pca_x, window_sizes, bucket_name)
-    calculate_fric_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name)
+    calculate_fric(SITECODE, plot, pca_x, window_sizes, bucket_name, Out_Dir)
+    calculate_fric_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name, Out_Dir)
 
   print(f"Processing {SITECODE} complete")
 
