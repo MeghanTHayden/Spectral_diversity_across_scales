@@ -68,13 +68,14 @@ def randomize_pixels(pca_x):
   shape = pca_x.shape
   dim1, dim2, ncomps = shape[0], shape[1], shape[2]
   pca_x_flat = pca_x.reshape(-1, ncomps)  # Flatten PCA array to 2D (n_pixels, n_components)
-  np.random.shuffle(pca_x_flat)          # Shuffle rows randomly
-  pca_x_random = pca_x_flat.reshape(dim1, dim2,ncomps)  # Reshape back to original dimensions
+  print("Flattened shape for randomization:", pca_x_flat.shape)
+  pca_x_flat_shuffled = np.random.permutation(pca_x_flat)          # Shuffle rows randomly
+  pca_x_random = pca_x_flat_shuffled.reshape(dim1, dim2,ncomps)  # Reshape back to original dimensions
   print("Randomization complete. Shape:", pca_x_random.shape)
 
   # Verify randomization
-  print(f"Original data sample: {pca_x.flatten()[:10]}")
-  print(f"Randomized data sample: {pca_x_random.flatten()[:10]}")
+  print(f"Original data sample: {pca_x[200:210]}")
+  print(f"Randomized data sample: {pca_x_random[200:210]}")
 
   return pca_x_random
 
