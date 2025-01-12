@@ -56,7 +56,7 @@ def window_calcs(args):
                 sub_arr = sub_arr.reshape((-1, comps))
                 # Remove NA values
                 sub_arr = sub_arr[~np.isnan(sub_arr).any(axis=1)]
-                print(sub_arr.shape)
+                #print(sub_arr.shape)
                 if sub_arr.shape[0] >= 4:
                     try:
                         if hull is None:
