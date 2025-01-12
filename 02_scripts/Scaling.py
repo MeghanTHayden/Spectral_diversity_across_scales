@@ -1,21 +1,5 @@
 import os
 import boto3
-import csv
-from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
-
-def identify_summaries(s3, bucket_name):
-  # List mosaics for a site in the S3 bucket in the matching directory
-  search_criteria = "specdiv"
-  objects = s3.list_objects_v2(Bucket=bucket_name, Prefix="/")['Contents']
-  
-  # Filter objects based on the search criteria
-  summaries = [obj['Key'] for obj in objects if obj['Key'].endswith('.csv') and (search_criteria in obj['Key'])]
-  print(summaries)
-  
-  return summaries
-
-import os
-import boto3
 import pandas as pd
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
 
