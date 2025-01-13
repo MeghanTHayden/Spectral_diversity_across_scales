@@ -54,6 +54,12 @@ def window_calcs(args):
                 hull = None
                 sub_arr = pca_chunk[i - half_window:i + half_window + 1, j - half_window:j + half_window + 1, :]
                 sub_arr = sub_arr.reshape((-1, comps))
+
+                # Calculate proportion of NaN values
+                total_elements = sub_arr.size
+                num_nans = np.isnan(sub_arr).sum()
+                prop_nans = num_nans / total_elements if total_elements > 0 else 0
+                
                 # Remove NA values
                 sub_arr = sub_arr[~np.isnan(sub_arr).any(axis=1)]
                 #print(sub_arr.shape)
@@ -61,7 +67,7 @@ def window_calcs(args):
                     try:
                         if hull is None:
                             hull = ConvexHull(sub_arr)
-                            window_data.append([window, hull.volume])
+                            window_data.append([window, hull.volume, prop_nans])
                     except scipy.spatial.qhull.QhullError as e:
                         continue
                 else:
@@ -72,7 +78,7 @@ def window_calcs(args):
         with open(local_file_path, 'a', newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
             if csvfile.tell() == 0:
-                csvwriter.writerow(['Window_Size', 'Hull_Volume'])  # Write header
+                csvwriter.writerow(['Window_Size', 'Hull_Volume', 'Prop_NaN'])  # Write header
                                         
            # for window_result, fric_matrix in results_FR.items():
            #     for row in fric_matrix:
