@@ -42,6 +42,10 @@ def window_calcs(args):
     
     """
     windows, pca_chunk, results_FR, local_file_path  = args
+    # Impute values for NAs
+    global_means = np.nanmean(pca_chunk.reshape(-1, pca_chunk.shape[-1]), axis=0)
+    row_nan_mask = np.isnan(pca_chunk).all(axis=1)
+    pca_chunk[row_nan_mask] = global_means
     #print(pca_chunk[15:20, 30:40, 1])
     window_data = []
     for window in tqdm(windows, desc='Processing window for batch'):
@@ -60,8 +64,9 @@ def window_calcs(args):
                 num_nans = np.isnan(sub_arr).sum()
                 prop_nans = num_nans / total_elements if total_elements > 0 else 0
                 
-                # Remove NA values
-                sub_arr = sub_arr[~np.isnan(sub_arr).any(axis=1)]
+                # Remove NA pixels
+                #sub_arr = sub_arr[~np.isnan(sub_arr).any(axis=1)]
+                
                 #print(sub_arr.shape)
                 if sub_arr.shape[0] >= 4:
                     try:
