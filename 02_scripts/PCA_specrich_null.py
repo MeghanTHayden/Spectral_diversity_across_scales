@@ -183,8 +183,11 @@ def calculate_fdiv_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name,
 
 def pca_specdiv_workflow(SITECODE):
   # Set directories
-  Data_Dir = '/home/ec2-user/Functional_diversity_across_scales/01_data'
-  Out_Dir = '/home/ec2-user/Functional_diversity_across_scales/02_output'
+  # Depends on instance
+  #Data_Dir = '/home/ec2-user/Functional_diversity_across_scales/01_data'
+  #Out_Dir = '/home/ec2-user/Functional_diversity_across_scales/02_output'
+  Data_Dir = '/home/ec2-user/BioSCape_across_scales/01_data'
+  Out_Dir = '/home/ec2-user/BioSCape_across_scales/02_output'
   bucket_name = 'bioscape.gra'
   s3 = boto3.client('s3')
   window_sizes = [60, 120, 240, 480, 960, 1200, 1500, 2000, 2200]
