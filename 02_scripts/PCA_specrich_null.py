@@ -83,9 +83,9 @@ def load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir):
   os.remove(local_file)
   del veg_np
 
-  return X, nan_mask, prop_na, dim1, dim2, crs, transform
+  return X, prop_na, dim1, dim2, crs, transform
 
-def perform_pca(X, nan_mask, dim1, dim2, ncomps = 3):
+def perform_pca(X, dim1, dim2, ncomps = 3):
   # Impute missing values
   print("Imputing missing values...")
   #imputer = SimpleImputer(missing_values=np.nan, strategy='median')
@@ -194,8 +194,8 @@ def pca_specdiv_workflow(SITECODE):
   
   plots = identify_plots(SITECODE, s3, bucket_name)
   for plot in plots:
-    X, nan_mask, prop_na,dim1,dim2,crs,transform = load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir)
-    pca_x, var_explained = perform_pca(X, nan_mask, dim1, dim2, ncomps = 3)
+    X, prop_na,dim1,dim2,crs,transform = load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir)
+    pca_x, var_explained = perform_pca(X, dim1, dim2, ncomps = 3)
     pca_x_random = randomize_pixels(pca_x)
     calculate_fric_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name, Out_Dir)
     calculate_fdiv_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name, Out_Dir)
