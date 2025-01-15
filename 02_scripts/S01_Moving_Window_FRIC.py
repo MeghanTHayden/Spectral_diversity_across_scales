@@ -42,11 +42,6 @@ def window_calcs(args):
     
     """
     windows, pca_chunk, results_FR, local_file_path  = args
-    # Impute values for NAs
-    global_means = np.nanmean(pca_chunk.reshape(-1, pca_chunk.shape[-1]), axis=0)
-    row_nan_mask = np.isnan(pca_chunk).all(axis=1)
-    pca_chunk[row_nan_mask] = global_means
-    #print(pca_chunk[15:20, 30:40, 1])
     window_data = []
     for window in tqdm(windows, desc='Processing window for batch'):
         comps = 3
@@ -66,6 +61,18 @@ def window_calcs(args):
                 
                 # Remove NA pixels
                 #sub_arr = sub_arr[~np.isnan(sub_arr).any(axis=1)]
+
+                # Impute NA pixels as mean
+                nan_mask = np.isnan(sub_arr)
+                if nan_mask.shape != sub_arr.shape:
+                    raise ValueError(f"Mask shape {nan_mask.shape} does not match sub-array shape {sub_arr.shape}")
+                col_means = np.nanmean(sub_arr, axis=0)
+                if col_means.shape[0] != sub_arr.shape[1]:
+                    raise ValueError("Column means do not match the number of sub-array columns.")
+                sub_arr[nan_mask] = np.take(col_means, np.where(nan_mask)[1])
+                
+                # Impute NA pixels as 0
+                #sub_arr = np.nan_to_num(sub_arr, nan=0)
                 
                 #print(sub_arr.shape)
                 if sub_arr.shape[0] >= 4:
