@@ -55,21 +55,21 @@ def window_calcs(args):
                 sub_arr = sub_arr.reshape((-1, comps))
 
                 # Calculate proportion of NaN values
-                total_elements = sub_arr.size
-                num_nans = np.isnan(sub_arr).sum()
-                prop_nans = num_nans / total_elements if total_elements > 0 else 0
+                #total_elements = sub_arr.size
+                #num_nans = np.isnan(sub_arr).sum()
+                #prop_nans = num_nans / total_elements if total_elements > 0 else 0
                 
                 # Remove NA pixels
                 #sub_arr = sub_arr[~np.isnan(sub_arr).any(axis=1)]
 
                 # Impute NA pixels as mean
-                nan_mask = np.isnan(sub_arr)
-                if nan_mask.shape != sub_arr.shape:
-                    raise ValueError(f"Mask shape {nan_mask.shape} does not match sub-array shape {sub_arr.shape}")
-                col_means = np.nanmean(sub_arr, axis=0)
-                if col_means.shape[0] != sub_arr.shape[1]:
-                    raise ValueError("Column means do not match the number of sub-array columns.")
-                sub_arr[nan_mask] = np.take(col_means, np.where(nan_mask)[1])
+                #nan_mask = np.isnan(sub_arr)
+                #if nan_mask.shape != sub_arr.shape:
+                #    raise ValueError(f"Mask shape {nan_mask.shape} does not match sub-array shape {sub_arr.shape}")
+                #col_means = np.nanmean(sub_arr, axis=0)
+                #if col_means.shape[0] != sub_arr.shape[1]:
+                #    raise ValueError("Column means do not match the number of sub-array columns.")
+                #sub_arr[nan_mask] = np.take(col_means, np.where(nan_mask)[1])
                 
                 # Impute NA pixels as 0
                 #sub_arr = np.nan_to_num(sub_arr, nan=0)
@@ -79,7 +79,7 @@ def window_calcs(args):
                     try:
                         if hull is None:
                             hull = ConvexHull(sub_arr)
-                            window_data.append([window, hull.volume, prop_nans])
+                            window_data.append([window, hull.volume])
                     except scipy.spatial.qhull.QhullError as e:
                         continue
                 else:
@@ -90,7 +90,7 @@ def window_calcs(args):
         with open(local_file_path, 'a', newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
             if csvfile.tell() == 0:
-                csvwriter.writerow(['Window_Size', 'Hull_Volume', 'Prop_NaN'])  # Write header
+                csvwriter.writerow(['Window_Size', 'Hull_Volume'])  # Write header
                                         
            # for window_result, fric_matrix in results_FR.items():
            #     for row in fric_matrix:
