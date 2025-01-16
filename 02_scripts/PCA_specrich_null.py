@@ -118,6 +118,39 @@ def perform_pca(X, dim1, dim2, ncomps = 3):
 
   return pca_x, var_explained
 
+def write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot, crs, transform):
+    # Define the output raster file name
+    local_pca_raster_path = os.path.join(Out_Dir, f"{SITECODE}_pca_{plot}.tif")
+    s3_pca_raster_key = f"{SITECODE}_flightlines/{SITECODE}_pca_{plot}_impute.tif"
+
+    # Write PCA to raster
+    with rasterio.open(
+        local_pca_raster_path,
+        "w",
+        driver="GTiff",
+        height=pca_x.shape[0],
+        width=pca_x.shape[1],
+        count=pca_x.shape[2],  # Number of components as raster bands
+        dtype="float32",
+        crs=crs,  # Use CRS from the original raster
+        transform=transform,  # Use transform from the original raster
+    ) as dst:
+        for band in range(pca_x.shape[2]):  # Loop through PCA components
+            dst.write(pca_x[:, :, band], band + 1)
+
+    print(f"PCA raster saved locally: {local_pca_raster_path}")
+
+    # Upload the PCA raster to S3
+    try:
+        s3.upload_file(local_pca_raster_path, bucket_name, s3_pca_raster_key)
+        print(f"PCA raster uploaded to S3: {s3_pca_raster_key}")
+    except ClientError as e:
+        print(f"Error uploading PCA raster to S3: {e}")
+
+    # Clean up local PCA raster to save space
+    os.remove(local_pca_raster_path)
+    print(f"Local PCA raster removed: {local_pca_raster_path}")
+
 def randomize_pixels(pca_x):
   # Randomize pixels to remove spatial organization
   print("Randomizing pixels for null distribution...")
@@ -134,6 +167,39 @@ def randomize_pixels(pca_x):
   print(f"Randomized data sample: {pca_x_random[200:210]}")
 
   return pca_x_random
+
+def write_pca_random_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x_random, plot, crs, transform):
+    # Define the output raster file name
+    local_pca_raster_path = os.path.join(Out_Dir, f"{SITECODE}_pca_{plot}.tif")
+    s3_pca_raster_key = f"{SITECODE}_flightlines/{SITECODE}_pca_{plot}_random_impute.tif"
+
+    # Write PCA to raster
+    with rasterio.open(
+        local_pca_raster_path,
+        "w",
+        driver="GTiff",
+        height=pca_x.shape[0],
+        width=pca_x.shape[1],
+        count=pca_x.shape[2],  # Number of components as raster bands
+        dtype="float32",
+        crs=crs,  # Use CRS from the original raster
+        transform=transform,  # Use transform from the original raster
+    ) as dst:
+        for band in range(pca_x.shape[2]):  # Loop through PCA components
+            dst.write(pca_x[:, :, band], band + 1)
+
+    print(f"PCA raster saved locally: {local_pca_raster_path}")
+
+    # Upload the PCA raster to S3
+    try:
+        s3.upload_file(local_pca_raster_path, bucket_name, s3_pca_raster_key)
+        print(f"PCA raster uploaded to S3: {s3_pca_raster_key}")
+    except ClientError as e:
+        print(f"Error uploading PCA raster to S3: {e}")
+
+    # Clean up local PCA raster to save space
+    os.remove(local_pca_raster_path)
+    print(f"Local PCA raster removed: {local_pca_raster_path}")
 
 def calculate_fric(SITECODE, plot, pca_x, window_sizes, bucket_name, Out_Dir):
   # Calculate FRic on PCA across window sizes
@@ -184,10 +250,10 @@ def calculate_fdiv_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name,
 def pca_specdiv_workflow(SITECODE):
   # Set directories
   # Depends on instance
-  #Data_Dir = '/home/ec2-user/Functional_diversity_across_scales/01_data'
-  #Out_Dir = '/home/ec2-user/Functional_diversity_across_scales/02_output'
-  Data_Dir = '/home/ec2-user/BioSCape_across_scales/01_data'
-  Out_Dir = '/home/ec2-user/BioSCape_across_scales/02_output'
+  Data_Dir = '/home/ec2-user/Functional_diversity_across_scales/01_data'
+  Out_Dir = '/home/ec2-user/Functional_diversity_across_scales/02_output'
+  #Data_Dir = '/home/ec2-user/BioSCape_across_scales/01_data'
+  #Out_Dir = '/home/ec2-user/BioSCape_across_scales/02_output'
   bucket_name = 'bioscape.gra'
   s3 = boto3.client('s3')
   window_sizes = [60, 120, 240, 480, 960, 1200, 1500, 2000, 2200]
@@ -197,6 +263,8 @@ def pca_specdiv_workflow(SITECODE):
     X, prop_na,dim1,dim2,crs,transform = load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir)
     pca_x, var_explained = perform_pca(X, dim1, dim2, ncomps = 3)
     pca_x_random = randomize_pixels(pca_x)
+    write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot, crs, transform)
+    write_pca_random_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x_random, plot, crs, transform)
     calculate_fric_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name, Out_Dir)
     calculate_fdiv_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name, Out_Dir)
     
