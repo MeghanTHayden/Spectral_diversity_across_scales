@@ -28,7 +28,7 @@ def process_csv_files(s3, bucket_name, summaries, output_csv):
     """
     results = []  # To store results
     
-    for summary_file in summaries:
+    for summary in summaries:
         summary_file = summary["Key"]
         last_modified = summary["LastModified"]
         print(f"Processing file: {summary_file} (Last Modified: {last_modified})")
