@@ -13,7 +13,8 @@ def identify_summaries(s3, bucket_name, search_criteria):
         objects = response.get('Contents', [])
         
         # Filter objects based on the search criteria
-        summaries = [obj['Key'] for obj in objects if obj['Key'].endswith('.csv') and search_criteria in obj['Key']]
+        summaries = [{"Key": obj['Key'], "LastModified": obj['LastModified']}
+                     for obj in objects if obj['Key'].endswith('.csv') and search_criteria in obj['Key']]
         print(f"Found {len(summaries)} matching files.")
         return summaries
 
@@ -28,7 +29,9 @@ def process_csv_files(s3, bucket_name, summaries, output_csv):
     results = []  # To store results
     
     for summary_file in summaries:
-        print(f"Processing file: {summary_file}")
+        summary_file = summary["Key"]
+        last_modified = summary["LastModified"]
+        print(f"Processing file: {summary_file} (Last Modified: {last_modified})")
         try:
             # Download the file from S3
             local_file = os.path.basename(summary_file)
@@ -41,6 +44,7 @@ def process_csv_files(s3, bucket_name, summaries, output_csv):
             if 'Window_Size' in df.columns and 'Hull_Volume' in df.columns:
                 summary_stats = df.groupby('Window_Size')['Hull_Volume'].median().reset_index()
                 summary_stats['File_Name'] = summary_file
+                summary_stats['Last_Modified'] = last_modified  # Add last modified date
                 results.append(summary_stats)
             else:
                 print(f"Required columns not found in {summary_file}")
@@ -79,7 +83,7 @@ def main():
     bucket_name = 'bioscape.gra'
     search_criteria = "specdiv"
     output_csv = "results_summary.csv"
-    destination_key = "/Specdiv_results_summary.csv"  # S3 path for the uploaded file
+    destination_key = "/Specdiv_results_summary_1-16.csv"  # S3 path for the uploaded file
 
     # Initialize the S3 client
     s3 = boto3.client('s3')
