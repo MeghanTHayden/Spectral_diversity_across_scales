@@ -168,7 +168,7 @@ def randomize_pixels(pca_x):
 
   return pca_x_random
 
-def write_pca_random_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x_random, plot, crs, transform):
+def write_pca_random_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot, crs, transform):
     # Define the output raster file name
     local_pca_raster_path = os.path.join(Out_Dir, f"{SITECODE}_pca_{plot}.tif")
     s3_pca_raster_key = f"{SITECODE}_flightlines/{SITECODE}_pca_{plot}_random_impute.tif"
