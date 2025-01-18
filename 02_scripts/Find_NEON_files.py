@@ -148,6 +148,6 @@ def neon_flight_process(center_lat, center_long):
             #process_and_upload(h5_file_path, Out_Dir, bucket_name)
             #os.remove(h5_file_path)
 
-if __name__ == "__main__":
-  neon_flight_process(center_lat, center_long)
+
+neon_flight_process(28.07484, -81.39467)
 
