@@ -137,7 +137,7 @@ def neon_flight_process(center_lat, center_long):
   print(products)
 
   for product in products:
-    print("Downloading mosaics..."
+    print("Downloading mosaics...")
     download_neon_product(product, Data_Dir)
 
   for h5_file in os.listdir(Data_Dir):
