@@ -42,7 +42,9 @@ def process_csv_files(s3, bucket_name, summaries, output_csv):
             
             # Compute summary statistics (e.g., mean specdiv for each window size)
             if 'Window_Size' in df.columns and 'Hull_Volume' in df.columns:
-                summary_stats = df.groupby('Window_Size')['Hull_Volume'].median().reset_index()
+                summary_stats = df.groupby('Window_Size')['Hull_Volume'].agg(
+                    Median='median',
+                    StdDev='std').reset_index()
                 summary_stats['File_Name'] = summary_file
                 summary_stats['Last_Modified'] = last_modified  # Add last modified date
                 results.append(summary_stats)
