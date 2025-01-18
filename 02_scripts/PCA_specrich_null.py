@@ -13,8 +13,11 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import RobustScaler
 from sklearn.decomposition import IncrementalPCA
 import requests
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 from sklearn.pipeline import Pipeline
+from tqdm.contrib.concurrent import process_map
+from S01_Moving_Window_FRIC import *
+from S01_Moving_Window_FDiv import *
 
 def identify_plots(SITECODE, s3, bucket_name):
   # List mosaics for a site in the S3 bucket in the matching directory
@@ -178,7 +181,8 @@ def calculate_fdiv_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name,
   )
   # open file for writing
   destination_s3_key_fdiv_null = "/" + SITECODE + "_specdivergence_null_" + str(plot) + ".csv"
-  upload_to_s3(bucket_name, local_file_path_fdiv_null, destination_s3_key_fdiv_null)
+  s3 = boto3.client('s3')
+  s3.upload_file(local_file_path_fdiv_null, bucket_name,destination_s3_key_fdiv_null)
   print("FDiv file uploaded to S3")
 
 def pca_specdiv_workflow(SITECODE):
