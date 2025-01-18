@@ -2,7 +2,7 @@
 import os
 import h5py
 import rasterio
-from rasterio.transform import form_origin
+from rasterio.transform import from_origin
 import numpy as np
 import requests
 import boto3
