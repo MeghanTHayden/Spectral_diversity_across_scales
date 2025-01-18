@@ -42,7 +42,9 @@ def process_csv_files(s3, bucket_name, summaries, output_csv):
             
             # Compute summary statistics (e.g., mean specdiv for each window size)
             if 'Window_Size' in df.columns and 'Hull_Volume' in df.columns:
-                summary_stats = df.groupby('Window_Size')['Hull_Volume'].median().reset_index()
+                summary_stats = df.groupby('Window_Size')['Hull_Volume'].agg(
+                    Median='median',
+                    StdDev='std').reset_index()
                 summary_stats['File_Name'] = summary_file
                 summary_stats['Last_Modified'] = last_modified  # Add last modified date
                 results.append(summary_stats)
@@ -83,7 +85,7 @@ def main():
     bucket_name = 'bioscape.gra'
     search_criteria = "specdiv"
     output_csv = "results_summary.csv"
-    destination_key = "/Specdiv_results_summary_1-16.csv"  # S3 path for the uploaded file
+    destination_key = "/Specdiv_results_summary_1-18.csv"  # S3 path for the uploaded file
 
     # Initialize the S3 client
     s3 = boto3.client('s3')
