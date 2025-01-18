@@ -148,6 +148,7 @@ def neon_flight_process(center_lat, center_long):
             #process_and_upload(h5_file_path, Out_Dir, bucket_name)
             #os.remove(h5_file_path)
 
-
-neon_flight_process(28.07484, -81.39467)
+center_lat = 28.07484
+center_lon = -81.39467
+neon_flight_process(center_lat, center_lon)
 
