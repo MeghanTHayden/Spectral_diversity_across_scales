@@ -83,9 +83,9 @@ def upload_results_to_s3(s3, bucket_name, local_file_path, destination_key):
 
 def main():
     bucket_name = 'bioscape.gra'
-    search_criteria = "specdiv"
+    search_criteria = "specdiv_null"
     output_csv = "results_summary.csv"
-    destination_key = "/Specdiv_results_summary_1-18.csv"  # S3 path for the uploaded file
+    destination_key = "/Specdiv_null_results_summary_2-12.csv"  # S3 path for the uploaded file
 
     # Initialize the S3 client
     s3 = boto3.client('s3')
