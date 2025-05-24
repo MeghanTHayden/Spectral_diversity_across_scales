@@ -29,5 +29,5 @@ Processing scripts should be implemented as:
 
 **Authors:** M. Hayden
 
-**Cite this software:** Hayden, M. (2024). Functional diversity across scales (Version 0.1.0) [Computer software]. https://doi.org/10.5281/zenodo.11223173
+**Cite this software:** Hayden, M. (2024). Spectral diversity across scales (Version 0.1.0) [Computer software]. https://doi.org/10.5281/zenodo.11223173
 
