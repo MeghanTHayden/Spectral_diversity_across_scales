@@ -52,7 +52,7 @@ from csv import writer
 import argparse
 # Import supporting functions, functions for calculating FRic and FDiv
 from S01_Functions import *
-from S01_Moving_Window_FRIC import *
+from S01_Moving_Window_FRIC_TPD import *
 from S01_Moving_Window_FDiv import *
 
 # Set directories
