@@ -155,21 +155,21 @@ for i in plots:
     # Calculate FRic on PCA across window sizes
     print("Calculating FRic")
     results_FR = {}
-    local_file_path_fric = Out_Dir + "/" + SITECODE + "_fric_" + str(i) + ".csv"
+    local_file_path_fric = Out_Dir + "/" + SITECODE + "_fric_ndvi4_" + str(i) + ".csv"
     window_batches = [(a, pca_x, results_FR, local_file_path_fric) for a in np.array_split(window_sizes, cpu_count() - 1) if a.any()]
     volumes = process_map(
         window_calcs,
         window_batches,
         max_workers=cpu_count() - 1
     )
-    destination_s3_key_fric = "/" + SITECODE + "_fric_veg_" + str(i) + ".csv"
+    destination_s3_key_fric = "/" + SITECODE + "_fric_veg_ndvi4_" + str(i) + ".csv"
     upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
     print("FRic file uploaded to S3")
     
     # Calculate FDiv on PCA across window sizes
     print("Calculating FDiv")
     results_FD = {}
-    local_file_path_fdiv = Out_Dir + "/" + SITECODE + "_fdiv_veg_" + str(i) + ".csv"
+    local_file_path_fdiv = Out_Dir + "/" + SITECODE + "_fdiv_veg_ndvi4_" + str(i) + ".csv"
     window_batches = [(a, pca_x, results_FD, local_file_path_fdiv) for a in np.array_split(window_sizes, cpu_count() - 1) if a.any()]
     volumes = process_map(
         window_calcs_fdiv,
@@ -177,7 +177,7 @@ for i in plots:
         max_workers=cpu_count() - 1
     )
     # open file for writing
-    destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_veg_" + str(i) + ".csv"
+    destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_veg_ndvi4_" + str(i) + ".csv"
     upload_to_s3(bucket_name, local_file_path_fdiv, destination_s3_key_fdiv)
     print("FDiv file uploaded to S3")
 

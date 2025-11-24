@@ -18,7 +18,7 @@ def calculate_bounding_box(center_lat, center_lon, box_size_km=2):
         "max_lon": center_lon + offset
     }
 
-def search_neon_products(bbox, product_code):
+def search_neon_products(bbox, site_code, product_code):
     base_url = "https://data.neonscience.org/api/v0/products"
     
     # NEON API request parameters
@@ -31,6 +31,17 @@ def search_neon_products(bbox, product_code):
     response = requests.get(base_url, params=params)
     response.raise_for_status()
     data = response.json()
+    
+    relevant_files = []
+    if isinstance(data, dict) and "data" in data:
+        for item in data["data"]:
+            if item.get("productCode") != product_code:
+                continue
+            if site_code and item.get("siteCode") != site_code:
+                continue
+            for url in item.get("availableDataUrls", []):
+                relevant_files.append({"url": url, "siteCode": item.get("siteCode")})
+    print(relevant_files)
     
     # Parse and return available data
     available_data = data.get("data", {}).get("availableData", [])
@@ -133,7 +144,9 @@ def neon_flight_process(center_lat, center_long):
   
   # Search for DP3.30006.002 products
   print("Searching for overlapping mosaics...")
-  products = search_neon_products(bbox, "DP3.30006.002")
+  product_code = "DP3.30006.002"
+  site_code = "DSNY"
+  products = search_neon_products(bbox, site_code,product_code)
   print(products)
 
   for product in products:

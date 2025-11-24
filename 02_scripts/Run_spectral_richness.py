@@ -1,25 +1,28 @@
 import PCA
 import Spectral_richness
+import PCA_specrich_null
 
 sites = [
        # 'HEAL',
        # 'BART',
-       # 'CLBJ',
-       # 'KONZ',
-       # 'NIWO',
-       # 'ONAQ',
+        'CLBJ',
+        'KONZ',
+        'NIWO',
+        'ONAQ'#,
        # 'OSBS',
        # 'PUUM',
-        'SERC',
-        'SRER',
-        'TALL',
-        'TEAK',
-        'TOOL',
-        'UNDE',
-        'WOOD',
-        'WREF',
-        'YELL']
+       # 'SERC',
+       # 'SRER',
+       # 'TALL',
+       # 'TEAK',
+       # 'TOOL',
+       # 'UNDE',
+       # 'WOOD',
+       # 'WREF',
+       # 'YELL'
+       ]
 
 for site in sites:
-  PCA.pca_workflow(site)
-  Spectral_richness.process_spectral_richness(site)
+  #PCA.pca_workflow(site)
+  #Spectral_richness.process_spectral_richness(site)
+  PCA_specrich_null.pca_specdiv_workflow(site)
