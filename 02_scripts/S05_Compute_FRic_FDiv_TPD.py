@@ -176,24 +176,41 @@ for i in plots:
     pca_x = pca_x.reshape((dim1, dim2, comps))
     print("PCA shape:", pca_x.shape)
 
-    # ---- NEW: compute global bin edges for TPD in PC space ----
-    pcs_flat = pca_x.reshape(-1, comps)              # (N, comps)
-    pcs_flat = pcs_flat[~np.isnan(pcs_flat).any(axis=1)]  # drop rows with NaNs
-    breaks_list = compute_global_breaks(
-      pcs_flat,
-      n_bins=6,      # tune if needed
-      q_low=0.01,
-      q_high=0.99
-    )
-    # -----------------------------------------------------------
+     # ---- Scale PCs to [0,1] with trimmed extremes (0.1% and 99.9%) ----
+    pcs_flat = pca_x.reshape(-1, comps)
+    valid = ~np.isnan(pcs_flat).any(axis=1)
+    pcs_valid = pcs_flat[valid, :]
+
+    # Per-PC lower/upper based on 0.1% and 99.9% quantiles
+    lower = np.nanpercentile(pcs_valid, 0.1, axis=0)
+    upper = np.nanpercentile(pcs_valid, 99.9, axis=0)
+    scale = upper - lower
+    scale[scale == 0] = 1.0  # avoid division by zero
+
+    pcs_scaled = (pcs_flat - lower) / scale
+    pcs_scaled = np.clip(pcs_scaled, 0.0, 1.0)
+
+    # Put back into array shape
+    pca_x_scaled = np.full_like(pca_x, np.nan, dtype=np.float32)
+    pca_x_scaled.reshape(-1, comps)[valid] = pcs_scaled[valid, :]
+    print("Scaled PCA shape:", pca_x_scaled.shape)
+
+      # ---- Build fixed KDE grid in [0,1]^D (D = comps) ----
+    grid_points, cell_volume = make_kde_grid(n_dims=comps, step=0.1)
+    print("KDE grid points:", grid_points.shape[0])
+    # ------------------------------------------------------
     
-    # Calculate FRic on PCA across window sizes
+    # Calculate FRic on PCA across window sizes using KDE estimation
     print("Calculating FRic (TPD-based)")
     local_file_path_fric = Out_Dir + "/" + SITECODE + "_fric_tpd_" + str(i) + ".csv"
 
+    # KDE parameters
+    bandwidth = 0.1        # in scaled [0,1] units; mirrors "0.1 kernel bandwidth"
+    density_factor = 1.0   # can tune this if needed
+
     # Each batch: (subset_of_window_sizes, pca_x, breaks_list, output_csv)
     window_batches = [
-        (a, pca_x, breaks_list, local_file_path_fric)
+        (a, pca_x_scaled, grid_points, cell_volume, bandwidth, density_factor, local_file_path_fric)
         for a in np.array_split(window_sizes, cpu_count() - 1)
         if a.any()
     ]
