@@ -67,7 +67,7 @@ VAR_OUT = os.path.join(Out_Dir, "PCA_variance_explained.csv")
 # Set global parameters #
 # window_sizes = [10, 30, 60, 120]   # smaller list of window sizes to test
 window_sizes = [60, 120, 240, 480, 960, 1200, 1500, 2000, 2200] # full list of window size for computations
-comps = 8 # number of components for PCA
+comps = 6 # number of components for PCA
 
 # Use arg parse for local variables
 # Create the parser
@@ -181,7 +181,7 @@ for i in plots:
     pcs_flat = pcs_flat[~np.isnan(pcs_flat).any(axis=1)]  # drop rows with NaNs
     breaks_list = compute_global_breaks(
       pcs_flat,
-      n_bins=10,      # tune if needed
+      n_bins=6,      # tune if needed
       q_low=0.01,
       q_high=0.99
     )
@@ -203,7 +203,7 @@ for i in plots:
       max_workers=cpu_count() - 1
     )
 
-    destination_s3_key_fric = "/" + SITECODE + "_fric_tpd_8pc_" + str(i) + ".csv"
+    destination_s3_key_fric = "/" + SITECODE + "_fric_tpd_6bin_6pc_" + str(i) + ".csv"
     upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
     print("FRic file uploaded to S3")
     
