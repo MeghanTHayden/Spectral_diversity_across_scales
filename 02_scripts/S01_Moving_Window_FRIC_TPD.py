@@ -67,12 +67,12 @@ def compute_tpd_histogram(Xw, breaks_list):
         return np.zeros_like(hist, dtype=float)
 
     prob = hist / total
-    return prob
+    return prob, hist
 
 
-def tpd_richness(prob, threshold=0.0):
+def tpd_richness(prob, hist, min_count = 2):
     """Number of occupied cells (prob > threshold)."""
-    return float(np.count_nonzero(prob > threshold))
+    return float(np.count_nonzero(hist >= min_count))
 
 
 def tpd_entropy(prob, eps=1e-12):
@@ -146,8 +146,8 @@ def window_calcs(args):
                         entropy_val = np.nan
                     else:
                         # Compute TPD histogram and metrics
-                        prob = compute_tpd_histogram(sub_arr_valid, breaks_list)
-                        richness = tpd_richness(prob, threshold=0.0)
+                        prob, hist = compute_tpd_histogram(sub_arr_valid, breaks_list)
+                        richness = tpd_richness(prob, hist, min_count = 2)
                         entropy_val = tpd_entropy(prob)
 
                     window_results.append([window, i, j, richness, entropy_val])
