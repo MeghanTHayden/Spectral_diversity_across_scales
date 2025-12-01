@@ -61,6 +61,9 @@ Out_Dir = '/home/ec2-user/BioSCape_across_scales/03_output'
 bucket_name = 'bioscape.gra'
 s3 = boto3.client('s3')
 
+# File for saving PCA variance
+VAR_OUT = os.path.join(Out_Dir, "PCA_variance_explained.csv")
+
 # Set global parameters #
 # window_sizes = [10, 30, 60, 120]   # smaller list of window sizes to test
 window_sizes = [60, 120, 240, 480, 960, 1200, 1500, 2000, 2200] # full list of window size for computations
@@ -146,6 +149,27 @@ for i in plots:
     pca = PCA(n_components=comps)
     pca.fit(X_transformed)
     print("Explained variance ratio:", pca.explained_variance_ratio_)
+
+    # Save variance explained by each PC for this site & plot
+    explained = pca.explained_variance_ratio_  # 1D array length = comps
+    fieldnames = (
+        ["site_code", "plot_id", "n_pc", "total_variance"] +
+        [f"PC{k}" for k in range(1, comps + 1)]
+    )
+    row = {
+        "site_code": SITECODE,
+        "plot_id": str(i),
+        "n_pc": comps,
+        "total_variance": float(explained.sum())
+    }
+    for k, val in enumerate(explained, start=1):
+        row[f"PC{k}"] = float(val)
+    file_exists = os.path.isfile(VAR_OUT)
+    with open(VAR_OUT, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(row)
 
     # PCA transform
     pca_x = pca.transform(X_transformed)
