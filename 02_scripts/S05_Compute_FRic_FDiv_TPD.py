@@ -67,7 +67,7 @@ VAR_OUT = os.path.join(Out_Dir, "PCA_variance_explained.csv")
 # Set global parameters #
 # window_sizes = [10, 30, 60, 120]   # smaller list of window sizes to test
 window_sizes = [60, 120, 240, 480, 960, 1200, 1500, 2000, 2200] # full list of window size for computations
-comps = 6 # number of components for PCA
+comps = 5 # number of components for PCA
 
 # Use arg parse for local variables
 # Create the parser
@@ -196,7 +196,7 @@ for i in plots:
     print("Scaled PCA shape:", pca_x_scaled.shape)
 
       # ---- Build fixed KDE grid in [0,1]^D (D = comps) ----
-    grid_points, cell_volume = make_kde_grid(n_dims=comps, step=0.1)
+    grid_points, cell_volume = make_kde_grid(n_dims=comps, step=0.2)
     print("KDE grid points:", grid_points.shape[0])
     # ------------------------------------------------------
     
@@ -205,7 +205,7 @@ for i in plots:
     local_file_path_fric = Out_Dir + "/" + SITECODE + "_fric_tpd_" + str(i) + ".csv"
 
     # KDE parameters
-    bandwidth = 0.1        # in scaled [0,1] units; mirrors "0.1 kernel bandwidth"
+    bandwidth = 0.2        # in scaled [0,1] units; mirrors "0.1 kernel bandwidth"
     density_factor = 1.0   # can tune this if needed
 
     # Each batch: (subset_of_window_sizes, pca_x, breaks_list, output_csv)
@@ -215,12 +215,12 @@ for i in plots:
         if a.any()
     ]
     volumes = process_map(
-      window_calcs,
+      window_calcs_kde,
       window_batches,
       max_workers=cpu_count() - 1
     )
 
-    destination_s3_key_fric = "/" + SITECODE + "_fric_tpd_6bin_6pc_" + str(i) + ".csv"
+    destination_s3_key_fric = "/" + SITECODE + "_fric_tpd_kde_5pc_" + str(i) + ".csv"
     upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
     print("FRic file uploaded to S3")
     

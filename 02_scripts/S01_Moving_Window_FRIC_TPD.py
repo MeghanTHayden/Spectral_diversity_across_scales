@@ -82,6 +82,15 @@ def tpd_entropy(prob, eps=1e-12):
         return 0.0
     return float(-(p * np.log(p + eps)).sum())
 
+def tpd_entropy_kde(prob, eps=1e-12):
+    """Shannon entropy (nats) of TPD."""
+    if prob is None:
+        return np.nan
+    p = prob[prob > 0]
+    if p.size == 0:
+        return 0.0
+    return float(-(p * np.log(p + eps)).sum())
+
 def make_kde_grid(n_dims, step=0.1):
     """
     Build a fixed grid in [0,1]^D at a given step size (e.g., 0.1),
@@ -185,10 +194,10 @@ def window_calcs(args):
             half_window = window // 2
             window_results = []
 
-            # Loop over center positions with step size 25 (as in your original code)
-            for i in tqdm(range(half_window, n_rows - half_window, 25),
+            # Loop over center positions with step size 50 (up from 25 in original code)
+            for i in tqdm(range(half_window, n_rows - half_window, 50),
                           desc=f'Processing indices for window {window}', leave=False):
-                for j in range(half_window, n_cols - half_window, 25):
+                for j in range(half_window, n_cols - half_window, 50):
                     # Extract subwindow: (window x window x n_pc)
                     sub_arr = pca_chunk[
                         i - half_window:i + half_window + 1,
@@ -267,12 +276,12 @@ def window_calcs_kde(args):
             half_window = window // 2
             window_results = []
 
-            # Loop over center positions with step size 25
+            # Loop over center positions with step size 50
             for i in tqdm(
-                range(half_window, n_rows - half_window, 25),
+                range(half_window, n_rows - half_window, 50),
                 desc=f"Processing indices for window {window}", leave=False
             ):
-                for j in range(half_window, n_cols - half_window, 25):
+                for j in range(half_window, n_cols - half_window, 50):
                     # Extract subwindow: (window x window x n_pc)
                     sub_arr = pca_chunk[
                         i - half_window:i + half_window + 1,
@@ -298,7 +307,7 @@ def window_calcs_kde(args):
                             bandwidth=bandwidth,
                             density_factor=density_factor
                         )
-                        entropy_val = tpd_entropy(prob_grid)
+                        entropy_val = tpd_entropy_kde(prob_grid)
 
                     window_results.append(
                         [window, i, j, fric_percent, entropy_val]
