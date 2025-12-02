@@ -82,6 +82,9 @@ SITECODE = args.SITECODE
 # Choose site and plots
 file_stem = SITECODE + '_flightlines/Mosaic_' + SITECODE + '_'
 
+# File to save PCA variance
+VAR_OUT = OUT_DIR + '/PCA_variance_explained.csv'
+
 # Identify plot IDs
 # List shapefiles for a site in the S3 bucket in the matching directory
 search_criteria = "Mosaic_"
@@ -146,6 +149,27 @@ for i in plots:
     pca = PCA(n_components=comps)
     pca.fit(X_transformed)
     print("Explained variance ratio:", pca.explained_variance_ratio_)
+
+    # Save variance explained by each PC for this site & plot
+    explained = pca.explained_variance_ratio_  # 1D array length = comps
+    fieldnames = (
+        ["site_code", "plot_id", "n_pc", "total_variance"] +
+        [f"PC{k}" for k in range(1, comps + 1)]
+    )
+    row = {
+        "site_code": SITECODE,
+        "plot_id": str(i),
+        "n_pc": comps,
+        "total_variance": float(explained.sum())
+    }
+    for k, val in enumerate(explained, start=1):
+        row[f"PC{k}"] = float(val)
+    file_exists = os.path.isfile(VAR_OUT)
+    with open(VAR_OUT, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(row)
 
     # PCA transform
     pca_x = pca.transform(X_transformed)
