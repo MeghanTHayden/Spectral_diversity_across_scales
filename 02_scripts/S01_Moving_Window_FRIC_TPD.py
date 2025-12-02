@@ -26,7 +26,7 @@ from tqdm import tqdm
 import csv
 from csv import writer
 
-def compute_global_breaks(pcs_all, n_bins=10, q_low=0.01, q_high=0.99):
+def compute_global_breaks(pcs_all, n_bins=6, q_low=0.01, q_high=0.99):
     """
     Compute global bin edges for each PC dimension to be reused
     across all windows, based on quantile-trimmed ranges.

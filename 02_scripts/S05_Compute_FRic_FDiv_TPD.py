@@ -195,22 +195,24 @@ for i in plots:
     pca_x_scaled.reshape(-1, comps)[valid] = pcs_scaled[valid, :]
     print("Scaled PCA shape:", pca_x_scaled.shape)
 
-      # ---- Build fixed KDE grid in [0,1]^D (D = comps) ----
-    grid_points, cell_volume = make_kde_grid(n_dims=comps, step=0.2)
-    print("KDE grid points:", grid_points.shape[0])
-    # ------------------------------------------------------
+   # ---- Compute global bin edges for TPD in PC space ----
+    pcs_flat = pca_x_scaled.reshape(-1, comps)              # (N, comps)
+    pcs_flat = pcs_flat[~np.isnan(pcs_flat).any(axis=1)]  # drop rows with NaNs
+    breaks_list = compute_global_breaks(
+      pcs_flat,
+      n_bins=6,      # tune if needed
+      q_low=0.01,
+      q_high=0.99
+    )
+    # -----------------------------------------------------------
     
     # Calculate FRic on PCA across window sizes using KDE estimation
     print("Calculating FRic (TPD-based)")
     local_file_path_fric = Out_Dir + "/" + SITECODE + "_fric_tpd_" + str(i) + ".csv"
 
-    # KDE parameters
-    bandwidth = 0.2        # in scaled [0,1] units; mirrors "0.1 kernel bandwidth"
-    density_factor = 1.0   # can tune this if needed
-
     # Each batch: (subset_of_window_sizes, pca_x, breaks_list, output_csv)
     window_batches = [
-        (a, pca_x_scaled, grid_points, cell_volume, bandwidth, density_factor, local_file_path_fric)
+        (a, pca_x_scaled, breaks_list, local_file_path_fric)
         for a in np.array_split(window_sizes, cpu_count() - 1)
         if a.any()
     ]
@@ -220,7 +222,8 @@ for i in plots:
       max_workers=cpu_count() - 1
     )
 
-    destination_s3_key_fric = "/" + SITECODE + "_fric_tpd_kde_5pc_" + str(i) + ".csv"
+    destination_s3_key_fric = "/" + SITECODE + "_fric_tpd_6pc_" + str(i) + ".csv"
+
     upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
     print("FRic file uploaded to S3")
     
