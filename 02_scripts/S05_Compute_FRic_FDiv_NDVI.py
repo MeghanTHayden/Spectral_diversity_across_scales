@@ -12,7 +12,7 @@ User input:
 """
 
 # Load required libraries
-import hytools as ht
+#import hytools as ht
 import matplotlib.pyplot as plt
 import matplotlib.colors as clr
 import numpy as np
@@ -50,21 +50,22 @@ import pycrs
 import csv
 from csv import writer
 import argparse
+from multiprocessing import cpu_count
 # Import supporting functions, functions for calculating FRic and FDiv
 from S01_Functions import *
 from S01_Moving_Window_FRIC import *
 from S01_Moving_Window_FDiv import *
 
 # Set directories
-Data_Dir = '/home/ec2-user/BioSCape_across_scales/01_data/02_processed'
-Out_Dir = '/home/ec2-user/BioSCape_across_scales/03_output'
+Data_Dir = '/home/ec2-user/Spectral_diversity_across_scales/01_data/02_processed'
+Out_Dir = '/home/ec2-user/Spectral_diversity_across_scales/03_output'
 bucket_name = 'bioscape.gra'
 s3 = boto3.client('s3')
 
 # Set global parameters #
 # window_sizes = [10, 30, 60, 120]   # smaller list of window sizes to test
 window_sizes = [60, 120, 240, 480, 960, 1200, 1500, 2000, 2200] # full list of window size for computations
-comps = 5 # number of components for PCA
+comps = 3 # number of components for PCA
 
 # Use arg parse for local variables
 # Create the parser
@@ -135,8 +136,8 @@ for i in plots:
     ndvi[ndvi_den == 0] = np.nan
 
     # NDVI threshold
-    ndvi_mask = ndvi >= 0.4
-    print("Proportion of pixels passing NDVI >= 0.4:", np.nanmean(ndvi_mask))
+    ndvi_mask = ndvi >= 0.40
+    print("Proportion of pixels passing NDVI >= 0.40:", np.nanmean(ndvi_mask))
     
     # Process for PCA
     # Flatten features into one dimension
@@ -208,11 +209,11 @@ for i in plots:
     local_file_path_fric = Out_Dir + "/" + SITECODE + "_fric_" + str(i) + ".csv"
     window_batches = [(a, pca_x, results_FR, local_file_path_fric) for a in np.array_split(window_sizes, cpu_count() - 1) if a.any()]
     volumes = process_map(
-        window_calcs,
+        window_calcs_old,
         window_batches,
         max_workers=cpu_count() - 1
     )
-    destination_s3_key_fric = "/" + SITECODE + "_fric_pc5_ndvi" + str(i) + ".csv"
+    destination_s3_key_fric = "/" + SITECODE + "_fric_pc3_ndvi_" + str(i) + ".csv"
     upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
     print("FRic file uploaded to S3")
     
@@ -227,7 +228,7 @@ for i in plots:
         max_workers=cpu_count() - 1
     )
     # open file for writing
-    destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_pc5_ndvi" + str(i) + ".csv"
+    destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_pc3_ndvi_" + str(i) + ".csv"
     upload_to_s3(bucket_name, local_file_path_fdiv, destination_s3_key_fdiv)
     print("FDiv file uploaded to S3")
 
