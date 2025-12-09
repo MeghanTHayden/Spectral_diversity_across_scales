@@ -26,6 +26,7 @@ from sklearn.decomposition import PCA
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import RobustScaler
 import multiprocessing as mp
+import pandas as pd
 
 # ---------------------------------------------------------------------
 # 1. Make sure Emiliano's repo is importable
@@ -61,6 +62,7 @@ args = parser.parse_args()
 
 SITECODE = args.SITECODE
 KERNEL_SIZE = args.window_size  # e.g., 31 (must be odd)
+KERNEL_SIZES = [121,241,481,961, 1201,1501,2001]
 SINGLE_PLOT = args.plot_id
 
 # Paths
@@ -209,137 +211,161 @@ def process_plot(plot_id: str):
     )
 
     # --- 4.5 Rolling window and KDE, single kernel size ---
-    rolling_window = traits_xr.rolling(
-        latitude=KERNEL_SIZE,
-        longitude=KERNEL_SIZE,
-        center={"latitude": True, "longitude": True},
-        min_periods=1,
-    )
+   results = []
+   try:
+        # -------------------------------------------------------------
+        # Loop over kernel sizes: KDE, FRic/FDiv, median summary
+        # -------------------------------------------------------------
+        for KERNEL_SIZE in KERNEL_SIZES:
+            print(f"---- Running KDE/TPD with KERNEL_SIZE = {KERNEL_SIZE} ----")
 
-    window_construct = rolling_window.construct(
-        latitude="x_window",
-        longitude="y_window",
-        stride={"latitude": LAT_STRIDE, "longitude": LON_STRIDE},
-    )
+            # Rolling window for this kernel size
+            rolling_window = traits_xr.rolling(
+                latitude=KERNEL_SIZE,
+                longitude=KERNEL_SIZE,
+                center={"latitude": True, "longitude": True},
+                min_periods=1,
+            )
 
-    kernels_xr = window_construct.stack(
-        gridcell=("latitude", "longitude"), window=["x_window", "y_window"]
-    ).transpose("gridcell", "window", "traits")
+            window_construct = rolling_window.construct(
+                latitude="x_window",
+                longitude="y_window",
+                stride={"latitude": LAT_STRIDE, "longitude": LON_STRIDE},
+            )
 
-    # Drop kernels that are mostly NaN
-    threshold = (KERNEL_NAN_THRESH * (KERNEL_SIZE ** 2)) / 100.0
-    kernels_xr = kernels_xr.dropna(
-        "gridcell", how="all", thresh=threshold
-    )
+            kernels_xr = window_construct.stack(
+                gridcell=("latitude", "longitude"), window=["x_window", "y_window"]
+            ).transpose("gridcell", "window", "traits")
 
-    # Save gridcell coords for later
-    sav_gridcell_dim = kernels_xr.indexes["gridcell"]
-    print("Please ignore the warning about coords being overwritten")
-    kernels_xr.coords["gridcell"] = np.linspace(
-        0, kernels_xr.shape[0], kernels_xr.shape[0]
-    )
+            # Drop kernels that are mostly NaN
+            threshold = (KERNEL_NAN_THRESH * (KERNEL_SIZE ** 2)) / 100.0
+            kernels_xr = kernels_xr.dropna(
+                "gridcell", how="all", thresh=threshold
+            )
 
-    # Fill remaining NaNs with mean within each kernel
-    kernels_xr = kernels_xr.fillna(kernels_xr.mean(dim="gridcell"))
+            # Save gridcell coords for later
+            sav_gridcell_dim = kernels_xr.indexes["gridcell"]
+            print("Please ignore the warning about coords being overwritten")
+            kernels_xr.coords["gridcell"] = np.linspace(
+                0, kernels_xr.shape[0], kernels_xr.shape[0]
+            )
 
-    kernel_groups = kernels_xr.groupby("gridcell")
+            # Fill remaining NaNs with mean within each kernel
+            kernels_xr = kernels_xr.fillna(kernels_xr.mean(dim="gridcell"))
 
-    # Kernel density per kernel
-    t0 = time.perf_counter()
-    kernel_density = xr.apply_ufunc(
-        kernel_density_pix,
-        kernel_groups,
-        cells_xr,
-        input_core_dims=[["window", "traits"], ["nd_cell", "traits"]],
-        output_core_dims=[["nd_cell"]],
-        exclude_dims=set(("window",)),
-        join="exact",
-        dask="allowed",
-        keep_attrs=True,
-        kwargs={"bandwidth": BANDWIDTH},
-        vectorize=False,
-    )
-    t1 = time.perf_counter()
-    print(f"KDE computed in {t1 - t0:.1f} s")
+            kernel_groups = kernels_xr.groupby("gridcell")
 
-    # Restore real gridcell coords
-    kernel_density = kernel_density.assign_coords(
-        gridcell=sav_gridcell_dim.set_names(["latitude", "longitude"])
-    )
+            # Kernel density per kernel
+            t0 = time.perf_counter()
+            kernel_density = xr.apply_ufunc(
+                kernel_density_pix,
+                kernel_groups,
+                cells_xr,
+                input_core_dims=[["window", "traits"], ["nd_cell", "traits"]],
+                output_core_dims=[["nd_cell"]],
+                exclude_dims=set(("window",)),
+                join="exact",
+                dask="allowed",
+                keep_attrs=True,
+                kwargs={"bandwidth": BANDWIDTH},
+                vectorize=False,
+            )
+            t1 = time.perf_counter()
+            print(f"KDE computed in {t1 - t0:.1f} s for kernel {KERNEL_SIZE}")
 
-    # --- 4.6 FRic (and FDiv if desired) ---
+            # Restore real gridcell coords
+            kernel_density = kernel_density.assign_coords(
+                gridcell=sav_gridcell_dim.set_names(["latitude", "longitude"])
+            )
 
-    kde_fric_uf = xr.apply_ufunc(
-        kde_fric_pix,
-        kernel_density.groupby("gridcell"),
-        input_core_dims=[["nd_cell", "gridcell"]],
-        exclude_dims=set(("nd_cell",)),
-        join="exact",
-        dask="allowed",
-        keep_attrs=True,
-        kwargs={"prob_thresh": PROB_THRESH, "norm": 1},
-        vectorize=False,
-    )
+            # --- FRic ---
+            kde_fric_uf = xr.apply_ufunc(
+                kde_fric_pix,
+                kernel_density.groupby("gridcell"),
+                input_core_dims=[["nd_cell", "gridcell"]],
+                exclude_dims=set(("nd_cell",)),
+                join="exact",
+                dask="allowed",
+                keep_attrs=True,
+                kwargs={"prob_thresh": PROB_THRESH, "norm": 1},
+                vectorize=False,
+            )
 
-    kde_fric_map = kde_fric_uf.unstack("gridcell")
+            kde_fric_map = kde_fric_uf.unstack("gridcell")
 
-    # Optional: FDiv too
-    kde_fdiv_uf = xr.apply_ufunc(
-        kde_fdiv_pix,
-        kernel_density.groupby("gridcell"),
-        cells_xr,
-        input_core_dims=[["gridcell", "nd_cell"], ["nd_cell", "traits"]],
-        exclude_dims=set(("nd_cell",)),
-        join="exact",
-        dask="allowed",
-        keep_attrs=True,
-        kwargs={
-            "ndim": kernels_xr.shape[2],
-            "n_cells": N_CELLS,
-            "prob_thresh": PROB_THRESH,
-        },
-        vectorize=False,
-    )
-    kde_fdiv_map = kde_fdiv_uf.unstack("gridcell")
+            # --- FDiv ---
+            kde_fdiv_uf = xr.apply_ufunc(
+                kde_fdiv_pix,
+                kernel_density.groupby("gridcell"),
+                cells_xr,
+                input_core_dims=[["gridcell", "nd_cell"], ["nd_cell", "traits"]],
+                exclude_dims=set(("nd_cell",)),
+                join="exact",
+                dask="allowed",
+                keep_attrs=True,
+                kwargs={
+                    "ndim": kernels_xr.shape[2],
+                    "n_cells": N_CELLS,
+                    "prob_thresh": PROB_THRESH,
+                },
+                vectorize=False,
+            )
+            kde_fdiv_map = kde_fdiv_uf.unstack("gridcell")
 
-    # Build a NaN mask like in Emiliano's script
-    coars_mask = traits_xr.isel(traits=1).coarsen(
-        latitude=LAT_STRIDE, longitude=LON_STRIDE, boundary="pad"
-    ).mean()
+            # --- Build NaN mask aligned with this KDE output ---
+            mask_this = mask.assign_coords(
+                {"longitude": kde_fric_map.coords["longitude"].values}
+            )
+            mask_this = mask_this.assign_coords(
+                {"latitude": kde_fric_map.coords["latitude"].values}
+            )
+            mask_this = mask_this.T
+            mask_this = xr.DataArray(
+                np.rot90(mask_this.data), dims=("latitude", "longitude")
+            )
+            nan_mask = mask_this.where(mask_this != 0, 1).where(mask_this == 0, 0)
+            nan_mask = kde_fric_map.copy(deep=True, data=nan_mask)
 
-    mask = coars_mask * 0
-    mask = mask.assign_coords({"longitude": kde_fric_map.coords["longitude"].values})
-    mask = mask.assign_coords({"latitude": kde_fric_map.coords["latitude"].values})
-    mask = mask.T
-    mask = xr.DataArray(np.rot90(mask.data), dims=("latitude", "longitude"))
-    nan_mask = mask.where(mask != 0, 1).where(mask == 0, 0)
-    nan_mask = kde_fric_map.copy(deep=True, data=nan_mask)
+            # Apply mask and compute medians (no rasters written)
+            masked_fric = nan_mask * kde_fric_map
+            masked_fric = masked_fric.where(masked_fric != 0, np.nan)
+            med_fric = float(masked_fric.median(skipna=True))
 
-    # Apply mask and write rasters
-    file_out_fric = os.path.join(
-        OUT_DIR,
-        f"{SITECODE}_{plot_id}_FRic_k{KERNEL_SIZE}_{N_PC}pc.tif",
-    )
-    file_out_fdiv = os.path.join(
-        OUT_DIR,
-        f"{SITECODE}_{plot_id}_FDiv_k{KERNEL_SIZE}_{N_PC}pc.tif",
-    )
+            masked_fdiv = nan_mask * kde_fdiv_map
+            masked_fdiv = masked_fdiv.where(masked_fdiv != 0, np.nan)
+            med_fdiv = float(masked_fdiv.median(skipna=True))
 
-    masked_fric = nan_mask * kde_fric_map
-    masked_fric = masked_fric.where(masked_fric != 0, np.nan)
-    masked_fric.rio.to_raster(file_out_fric)
-    print(f"Saved FRic map to {file_out_fric}")
+            print(
+                f"Kernel {KERNEL_SIZE}: median FRic = {med_fric:.4f}, "
+                f"median FDiv = {med_fdiv:.4f}"
+            )
 
-    masked_fdiv = nan_mask * kde_fdiv_map
-    masked_fdiv = masked_fdiv.where(masked_fdiv != 0, np.nan)
-    masked_fdiv.rio.to_raster(file_out_fdiv)
-    print(f"Saved FDiv map to {file_out_fdiv}")
+            results.append(
+                {
+                    "site": SITECODE,
+                    "plot_id": plot_id,
+                    "kernel_size": KERNEL_SIZE,
+                    "n_pc": N_PC,
+                    "median_fric": med_fric,
+                    "median_fdiv": med_fdiv,
+                }
+            )
 
-    # Clean up big arrays
-    try:
-        os.remove(local_mosaic)
-    except OSError:
-        pass
+        # After all kernel sizes: write summary CSV for this plot
+        out_csv = os.path.join(
+            OUT_DIR,
+            f"{SITECODE}_{plot_id}_TPD_medians_{N_PC}pc.csv",
+        )
+        df = pd.DataFrame(results)
+        df.to_csv(out_csv, index=False)
+        print(f"Saved median FRic/FDiv summary to {out_csv}")
+
+    finally:
+        # Clean up big arrays
+        try:
+            os.remove(local_mosaic)
+        except OSError:
+            pass
 
     print(f"Done with {SITECODE} plot {plot_id}.")
 
