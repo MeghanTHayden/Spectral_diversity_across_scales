@@ -234,13 +234,8 @@ for i in plots:
     pca_x = pca_x.reshape((dim1, dim2, comps))
     print("PCA shape:", pca_x.shape)
 
-    summarize_array("PC scores (finite only)", pc_x)
-    for k in range(comps):
-        v = pc_all[:, k]
-        v = v[np.isfinite(v)]
-        if v.size:
-            print(f"PC{k+1} range: min={v.min():.4g}, q99.9={np.quantile(v,0.999):.4g}, max={v.max():.4g}")
-    
+    summarize_array("PC scores (finite only)", pca_x)
+
     # Calculate FRic on PCA across window sizes
     print("Calculating FRic")
     results_FR = {}
@@ -252,7 +247,7 @@ for i in plots:
         max_workers=cpu_count() - 1
     )
 
-    destination_s3_key_fric = "/" + SITECODE + "_fric_pc3_ndvi_sizes" + str(i) + ".csv"
+    destination_s3_key_fric = "/FRic_Final/" + SITECODE + "_fric_pc3_" + str(i) + ".csv"
     upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
     print("FRic file uploaded to S3")
     
@@ -267,7 +262,7 @@ for i in plots:
         max_workers=cpu_count() - 1
     )
     # open file for writing
-    destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_pc3_ndvi_sizes" + str(i) + ".csv"
+    destination_s3_key_fdiv = "/FRic_Final/" + SITECODE + "_fdiv_pc3_" + str(i) + ".csv"
     upload_to_s3(bucket_name, local_file_path_fdiv, destination_s3_key_fdiv)
     print("FDiv file uploaded to S3")
 
