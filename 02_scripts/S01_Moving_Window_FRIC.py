@@ -60,7 +60,7 @@ def window_calcs(args):
                 #prop_nans = num_nans / total_elements if total_elements > 0 else 0
                 
                 # Remove NA pixels
-                #sub_arr = sub_arr[~np.isnan(sub_arr).any(axis=1)]
+                sub_arr = sub_arr[~np.isnan(sub_arr).any(axis=1)]
 
                 # Impute NA pixels as mean
                 #nan_mask = np.isnan(sub_arr)
