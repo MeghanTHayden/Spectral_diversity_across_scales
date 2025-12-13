@@ -3,20 +3,18 @@ import Spectral_richness
 import PCA_specrich_null
 
 sites = [
-        'HEAL',
         'BART',
+        'HEAL',
         'CLBJ',
         'KONZ',
         'NIWO',
-        'ONAQ',
-       # 'OSBS',
-       # 'PUUM',
+        #'ONAQ', # 0.3 NDVI
         'SERC',
-        'SRER',
-        'TALL',
-        'TEAK',
+        #'SRER', # 0.3 NDVI
+        #'TALL', # 0.45 NDVI
+        #'TEAK', # 0.35 NDVI
         'TOOL',
-        'UNDE',
+        #'UNDE', # 0.45 NDVI
         'WOOD',
         'WREF',
         'YELL'
