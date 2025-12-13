@@ -64,7 +64,7 @@ s3 = boto3.client('s3')
 # Set global parameters #
 # window_sizes = [10, 30, 60, 120]   # smaller list of window sizes to test
 window_sizes = [60, 120, 240, 480, 960, 1200, 1500, 2000, 2200] # full list of window size for computations
-comps = 5 # number of components for PCA
+comps = 3 # number of components for PCA
 
 # Use arg parse for local variables
 # Create the parser
@@ -102,6 +102,8 @@ for i,tif in enumerate(mosaics):
     else:
         print("Pattern not found in the URL.")
 plots = list(mosaic_names)  # Convert set back to a list if needed
+#exclude = ["001", "004", "044", "009", "010"]
+#plots = [p for p in plots if p not in exclude]
 print(plots)
 
 # Loop through plots to calculate FRic and FDiv
@@ -129,15 +131,18 @@ for i in plots:
     nir = veg_np[NIR_IDX, :, :].astype('float32')
     red = veg_np[RED_IDX, :, :].astype('float32')
 
-    # Avoid division by zero
-    ndvi_den = (nir + red)
-    ndvi = (nir - red) / ndvi_den
-    ndvi[ndvi_den == 0] = np.nan
+    ndvi = np.full(nir.shape, np.nan, dtype = 'float32')
+
+    valid = (nir > 0) & (red > 0) & ((nir + red) != 0)
+
+    ndvi[valid] = (nir[valid] - red[valid])/(nir[valid] + red[valid])
 
     # NDVI threshold
-    ndvi_mask = ndvi >= 0.4
-    print("Proportion of pixels passing NDVI >= 0.4:", np.nanmean(ndvi_mask))
-    
+    ndvi_mask = (ndvi >= 0.40)
+    #veg_np[:,~ndvi_mask] = np.nan
+    print("Proportion of pixels passing NDVI >= 0.40:", np.nanmean(ndvi_mask))
+    print("Proportion of pixels with valid NDVI inputs (nir>0 & red>0):", np.mean(valid))
+
     # Process for PCA
     # Flatten features into one dimension
     dim1, dim2, bands = shape[1], shape[2], shape[0]
@@ -146,34 +151,32 @@ for i in plots:
 
     # Set no data to nan
     X = X.astype('float32')
-    X[np.isnan(X)] = np.nan
-    X[X <= 0] = np.nan  # Adjust threshold if needed
+    #bad = np.all(X <= 0, axis = 1)
+    #X[bad, :] = np.nan
     print("Proportion of NaN values:", np.isnan(X).mean())
 
     # Rescale data
     X /= 10000
 
     # Flatten NDVI mask to match X rows
-    ndvi_mask_flat = ndvi_mask.reshape(dim1 * dim2)
+    #ndvi_mask_flat = ndvi_mask.reshape(dim1 * dim2)
 
     # Only use vegetated pixels (NDVI >= 0.4) to fit imputer, scaler, and PCA
-    valid = ndvi_mask_flat & ~np.isnan(X).all(axis=1)
-    print("Number of valid (NDVI>=0.4) pixels:", valid.sum())
+    #valid = ndvi_mask_flat & ~np.isnan(X).all(axis=1)
+    #print("Number of valid (NDVI>=0.4) pixels:", valid.sum())
 
     # Impute missing values
     imputer = SimpleImputer(missing_values=np.nan, strategy='median')
-    imputer.fit(X[valid])
-    X_imputed = imputer.transform(X)
+    X_transformed = imputer.fit_transform(X)
 
     # Scale & standardize array
     scaler = RobustScaler()
-    scaler.fit(X_imputed[valid])
-    X_transformed = scaler.transform(X_imputed)
+    X_transformed = scaler.fit_transform(X_transformed)
 
     # Perform initial PCA fit
     print("Fitting PCA")
     pca = PCA(n_components=comps)
-    pca.fit(X_transformed[valid])
+    pca.fit(X_transformed)
     print("Explained variance ratio:", pca.explained_variance_ratio_)
 
     # Save variance explained by each PC for this site & plot
@@ -208,11 +211,11 @@ for i in plots:
     local_file_path_fric = Out_Dir + "/" + SITECODE + "_fric_" + str(i) + ".csv"
     window_batches = [(a, pca_x, results_FR, local_file_path_fric) for a in np.array_split(window_sizes, cpu_count() - 1) if a.any()]
     volumes = process_map(
-        window_calcs,
+        window_calcs_old,
         window_batches,
         max_workers=cpu_count() - 1
     )
-    destination_s3_key_fric = "/" + SITECODE + "_fric_pc5_ndvi" + str(i) + ".csv"
+    destination_s3_key_fric = "/" + SITECODE + "_fric_pc3_ndvi_trial_" + str(i) + ".csv"
     upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
     print("FRic file uploaded to S3")
     
@@ -227,7 +230,7 @@ for i in plots:
         max_workers=cpu_count() - 1
     )
     # open file for writing
-    destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_pc5_ndvi" + str(i) + ".csv"
+    destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_pc3_ndvi_trial_" + str(i) + ".csv"
     upload_to_s3(bucket_name, local_file_path_fdiv, destination_s3_key_fdiv)
     print("FDiv file uploaded to S3")
 

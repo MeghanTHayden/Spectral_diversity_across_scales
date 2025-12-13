@@ -60,17 +60,17 @@ def window_calcs_old(args):
                 mean_arr = np.nanmean(sub_arr, axis=0)
                 #print(mean_arr)
                 non_zero_indices = np.nonzero(mean_arr)[0]
-                #print(non_zero_indices)
+                print(non_zero_indices)
                 # Try something to increase efficiency
-                unique_points = np.unique(sub_arr, axis=0)
-                min_bounds = sub_arr.min(axis=0)
-                max_bounds = sub_arr.max(axis=0)
+                #unique_points = np.unique(sub_arr, axis=0)
+                #min_bounds = sub_arr.min(axis=0)
+                #max_bounds = sub_arr.max(axis=0)
                 # Keep points close to the edges of the bounding box
-                buffer = 1e-6  # Small buffer to include near-boundary points
-                filtered_points = data[
-                    (sub_arr[:, 0] <= min_bounds[0] + buffer) | (sub_arr[:, 0] >= max_bounds[0] - buffer) |
-                    (sub_arr[:, 1] <= min_bounds[1] + buffer) | (sub_arr[:, 1] >= max_bounds[1] - buffer)
-                ]
+                #buffer = 1e-6  # Small buffer to include near-boundary points
+                #filtered_points = data[
+                #    (sub_arr[:, 0] <= min_bounds[0] + buffer) | (sub_arr[:, 0] >= max_bounds[0] - buffer) |
+                #    (sub_arr[:, 1] <= min_bounds[1] + buffer) | (sub_arr[:, 1] >= max_bounds[1] - buffer)
+                #]
                 # Continue as normal
                 if len(non_zero_indices) >= 3:
                     try:

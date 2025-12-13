@@ -102,6 +102,8 @@ for i,tif in enumerate(mosaics):
     else:
         print("Pattern not found in the URL.")
 plots = list(mosaic_names)  # Convert set back to a list if needed
+exclude = ['003', '014', '021', '023', '026', '027', '006']
+plots = [p for p in mosaic_names if p not in exclude]
 print(plots)
 
 # Loop through plots to calculate FRic and FDiv
@@ -151,25 +153,25 @@ for i in plots:
     print("Explained variance ratio:", pca.explained_variance_ratio_)
 
     # Save variance explained by each PC for this site & plot
-    explained = pca.explained_variance_ratio_  # 1D array length = comps
-    fieldnames = (
-        ["site_code", "plot_id", "n_pc", "total_variance"] +
-        [f"PC{k}" for k in range(1, comps + 1)]
-    )
-    row = {
-        "site_code": SITECODE,
-        "plot_id": str(i),
-        "n_pc": comps,
-        "total_variance": float(explained.sum())
-    }
-    for k, val in enumerate(explained, start=1):
-        row[f"PC{k}"] = float(val)
-    file_exists = os.path.isfile(VAR_OUT)
-    with open(VAR_OUT, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        if not file_exists:
-            writer.writeheader()
-        writer.writerow(row)
+    #explained = pca.explained_variance_ratio_  # 1D array length = comps
+    #fieldnames = (
+    #    ["site_code", "plot_id", "n_pc", "total_variance"] +
+    #    [f"PC{k}" for k in range(1, comps + 1)]
+    #)
+    #row = {
+    #    "site_code": SITECODE,
+    #    "plot_id": str(i),
+    #    "n_pc": comps,
+    #    "total_variance": float(explained.sum())
+    #}
+    #for k, val in enumerate(explained, start=1):
+    #    row[f"PC{k}"] = float(val)
+    #file_exists = os.path.isfile(VAR_OUT)
+    #with open(VAR_OUT, "a", newline="") as f:
+    #    writer = csv.DictWriter(f, fieldnames=fieldnames)
+    #    if not file_exists:
+    #        writer.writeheader()
+    #    writer.writerow(row)
 
     # PCA transform
     pca_x = pca.transform(X_transformed)
@@ -200,13 +202,13 @@ for i in plots:
     pcs_flat = pcs_flat[~np.isnan(pcs_flat).any(axis=1)]  # drop rows with NaNs
     breaks_list = compute_global_breaks(
       pcs_flat,
-      n_bins=6,      # tune if needed
+      n_bins=5,      # tune if needed
       q_low=0.01,
       q_high=0.99
     )
     # -----------------------------------------------------------
     
-    # Calculate FRic on PCA across window sizes using KDE estimation
+    # Calculate FRic on PCA across window sizes using histogram estimation
     print("Calculating FRic (TPD-based)")
     local_file_path_fric = Out_Dir + "/" + SITECODE + "_fric_tpd_" + str(i) + ".csv"
 
@@ -217,12 +219,12 @@ for i in plots:
         if a.any()
     ]
     volumes = process_map(
-      window_calcs_kde,
+      window_calcs,
       window_batches,
       max_workers=cpu_count() - 1
     )
 
-    destination_s3_key_fric = "/" + SITECODE + "_fric_tpd_6pc_" + str(i) + ".csv"
+    destination_s3_key_fric = "/" + SITECODE + "_fric_tpd_5pc_" + str(i) + ".csv"
 
     upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
     print("FRic file uploaded to S3")
