@@ -12,7 +12,7 @@ User input:
 """
 
 # Load required libraries
-import hytools as ht
+#import hytools as ht
 import matplotlib.pyplot as plt
 import matplotlib.colors as clr
 import numpy as np
@@ -50,14 +50,15 @@ import pycrs
 import csv
 from csv import writer
 import argparse
+from multiprocessing import cpu_count
 # Import supporting functions, functions for calculating FRic and FDiv
 from S01_Functions import *
 from S01_Moving_Window_FRIC import *
 from S01_Moving_Window_FDiv import *
 
 # Set directories
-Data_Dir = '/home/ec2-user/BioSCape_across_scales/01_data/02_processed'
-Out_Dir = '/home/ec2-user/BioSCape_across_scales/03_output'
+Data_Dir = '/home/ec2-user/Spectral_diversity_across_scales/01_data/02_processed'
+Out_Dir = '/home/ec2-user/Spectral_diversity_across_scales/03_output'
 bucket_name = 'bioscape.gra'
 s3 = boto3.client('s3')
 
@@ -215,7 +216,8 @@ for i in plots:
         window_batches,
         max_workers=cpu_count() - 1
     )
-    destination_s3_key_fric = "/" + SITECODE + "_fric_pc3_ndvi_trial_" + str(i) + ".csv"
+
+    destination_s3_key_fric = "/" + SITECODE + "_fric_pc3_ndvi_" + str(i) + ".csv"
     upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
     print("FRic file uploaded to S3")
     
@@ -230,7 +232,7 @@ for i in plots:
         max_workers=cpu_count() - 1
     )
     # open file for writing
-    destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_pc3_ndvi_trial_" + str(i) + ".csv"
+    destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_pc3_ndvi_" + str(i) + ".csv"
     upload_to_s3(bucket_name, local_file_path_fdiv, destination_s3_key_fdiv)
     print("FDiv file uploaded to S3")
 

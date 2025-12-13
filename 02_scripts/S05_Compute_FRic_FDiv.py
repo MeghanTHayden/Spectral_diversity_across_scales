@@ -12,7 +12,7 @@ User input:
 """
 
 # Load required libraries
-import hytools as ht
+#import hytools as ht
 import matplotlib.pyplot as plt
 import matplotlib.colors as clr
 import numpy as np
@@ -56,8 +56,8 @@ from S01_Moving_Window_FRIC import *
 from S01_Moving_Window_FDiv import *
 
 # Set directories
-Data_Dir = '/home/ec2-user/BioSCape_across_scales/01_data/02_processed'
-Out_Dir = '/home/ec2-user/BioSCape_across_scales/03_output'
+Data_Dir = '/home/ec2-user/Spectral_diversity_across_scales/01_data/02_processed'
+Out_Dir = '/home/ec2-user/Spectral_diversity_across_scales/03_output'
 bucket_name = 'bioscape.gra'
 s3 = boto3.client('s3')
 
@@ -102,6 +102,8 @@ for i,tif in enumerate(mosaics):
     else:
         print("Pattern not found in the URL.")
 plots = list(mosaic_names)  # Convert set back to a list if needed
+#exclude = ['002', '006', '021']
+#plots = [p for p in plots if p not in exclude]
 print(plots)
 
 # Loop through plots to calculate FRic and FDiv
