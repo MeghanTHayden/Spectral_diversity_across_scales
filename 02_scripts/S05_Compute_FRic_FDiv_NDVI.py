@@ -57,14 +57,15 @@ from S01_Moving_Window_FRIC import *
 from S01_Moving_Window_FDiv import *
 
 # Set directories
-Data_Dir = '/home/ec2-user/Spectral_diversity_across_scales/01_data/02_processed'
-Out_Dir = '/home/ec2-user/Spectral_diversity_across_scales/03_output'
+Data_Dir = '/home/ec2-user/BioSCape_across_scales/01_data/02_processed'
+Out_Dir = '/home/ec2-user/BioSCape_across_scales/03_output'
 bucket_name = 'bioscape.gra'
 s3 = boto3.client('s3')
 
 # Set global parameters #
 # window_sizes = [10, 30, 60, 120]   # smaller list of window sizes to test
-window_sizes = [60, 120, 240, 480, 960, 1200, 1500, 2000, 2200] # full list of window size for computations
+#window_sizes = [60, 120, 240, 480, 960, 1200, 1500, 2000, 2200] # full list of window size for computations
+window_sizes = [60, 90, 130, 195, 285, 420, 620, 920, 1355, 2000]
 comps = 3 # number of components for PCA
 
 # Use arg parse for local variables
@@ -140,7 +141,7 @@ for i in plots:
 
     # NDVI threshold
     ndvi_mask = (ndvi >= 0.40)
-    #veg_np[:,~ndvi_mask] = np.nan
+    veg_np[:,~ndvi_mask] = np.nan
     print("Proportion of pixels passing NDVI >= 0.40:", np.nanmean(ndvi_mask))
     print("Proportion of pixels with valid NDVI inputs (nir>0 & red>0):", np.mean(valid))
 
@@ -150,10 +151,13 @@ for i in plots:
     X = veg_np.reshape(bands, dim1 * dim2).T
     print("Shape of flattened array:", X.shape)
 
+    del veg_np, raster
+    del nir, red, ndvi
+
     # Set no data to nan
     X = X.astype('float32')
-    #bad = np.all(X <= 0, axis = 1)
-    #X[bad, :] = np.nan
+    bad = np.all(X <= 0, axis = 1)
+    X[bad, :] = np.nan
     print("Proportion of NaN values:", np.isnan(X).mean())
 
     # Rescale data
@@ -217,7 +221,7 @@ for i in plots:
         max_workers=cpu_count() - 1
     )
 
-    destination_s3_key_fric = "/" + SITECODE + "_fric_pc3_ndvi_" + str(i) + ".csv"
+    destination_s3_key_fric = "/" + SITECODE + "_fric_pc3_ndvi_sizes" + str(i) + ".csv"
     upload_to_s3(bucket_name, local_file_path_fric, destination_s3_key_fric)
     print("FRic file uploaded to S3")
     
@@ -232,12 +236,14 @@ for i in plots:
         max_workers=cpu_count() - 1
     )
     # open file for writing
-    destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_pc3_ndvi_" + str(i) + ".csv"
+    destination_s3_key_fdiv = "/" + SITECODE + "_fdiv_pc3_ndvi_sizes" + str(i) + ".csv"
     upload_to_s3(bucket_name, local_file_path_fdiv, destination_s3_key_fdiv)
     print("FDiv file uploaded to S3")
 
     # Remove files to clear storage
     os.remove(file)
+    os.remove(local_file_path_fric)
+    os.remove(local_file_path_fdiv)
     X = None
     X_no_nan = None
     pca_x = None
