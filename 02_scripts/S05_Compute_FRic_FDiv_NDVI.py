@@ -87,6 +87,31 @@ file_stem = SITECODE + '_flightlines/Mosaic_' + SITECODE + '_'
 # File to save PCA variance
 VAR_OUT = os.path.join(Out_Dir, "PCA_variance_explained_NDVI_iter.csv")
 
+# --- helper for diagnostics ---
+def summarize_array(name, arr, qs=(0, 0.001, 0.01, 0.5, 0.99, 0.999, 1.0), max_print_bands=6):
+    a = arr
+    a = a[np.isfinite(a)]
+    if a.size == 0:
+        print(f"[{name}] all non-finite")
+        return
+    qv = np.quantile(a, qs)
+    print(f"[{name}] n={a.size:,} min={qv[0]:.4g} q0.1%={qv[1]:.4g} q1%={qv[2]:.4g} "
+          f"median={qv[3]:.4g} q99%={qv[4]:.4g} q99.9%={qv[5]:.4g} max={qv[6]:.4g}")
+
+def summarize_per_band(name, X, band_idxs=None):
+    if band_idxs is None:
+        band_idxs = list(range(min(X.shape[1], 6)))
+    print(f"[{name}] per-band quick stats (showing bands {band_idxs}):")
+    for b in band_idxs:
+        v = X[:, b]
+        v = v[np.isfinite(v)]
+        if v.size == 0:
+            print(f"  band {b}: all non-finite")
+        else:
+            print(f"  band {b}: min={v.min():.4g} med={np.median(v):.4g} max={v.max():.4g} q99.9={np.quantile(v,0.999):.4g}")
+
+# ----------------------------
+
 # Identify plot IDs
 # List shapefiles for a site in the S3 bucket in the matching directory
 search_criteria = "Mosaic_"
@@ -161,14 +186,13 @@ for i in plots:
     print("Proportion of NaN values:", np.isnan(X).mean())
 
     # Rescale data
-    X /= 10000
+    X /= 10000.0
+    summarize_array("X reflectance (all values)", X)
 
-    # Flatten NDVI mask to match X rows
-    #ndvi_mask_flat = ndvi_mask.reshape(dim1 * dim2)
-
-    # Only use vegetated pixels (NDVI >= 0.4) to fit imputer, scaler, and PCA
-    #valid = ndvi_mask_flat & ~np.isnan(X).all(axis=1)
-    #print("Number of valid (NDVI>=0.4) pixels:", valid.sum())
+    LOW, HIGH = 0.0, 2.0
+    invalid = (~np.isfinite(X)) | (X <= LOW) | (X > HIGH)
+    print("Invalid value fraction (<=0 or >2 or non-finite):", invalid.mean())
+    X[invalid] = np.nan
 
     # Impute missing values
     imputer = SimpleImputer(missing_values=np.nan, strategy='median')
@@ -209,6 +233,13 @@ for i in plots:
     pca_x = pca.transform(X_transformed)
     pca_x = pca_x.reshape((dim1, dim2, comps))
     print("PCA shape:", pca_x.shape)
+
+    summarize_array("PC scores (finite only)", pc_x)
+    for k in range(comps):
+        v = pc_all[:, k]
+        v = v[np.isfinite(v)]
+        if v.size:
+            print(f"PC{k+1} range: min={v.min():.4g}, q99.9={np.quantile(v,0.999):.4g}, max={v.max():.4g}")
     
     # Calculate FRic on PCA across window sizes
     print("Calculating FRic")
