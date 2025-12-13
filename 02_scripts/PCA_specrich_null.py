@@ -69,26 +69,49 @@ def load_data_and_mask(SITECODE, plot, s3, bucket_name, Data_Dir):
   X = veg_np.reshape(bands, dim1 * dim2).T
   print("Shape of flattened array:", X.shape)
 
+  # Add secondary NDVI threshold
+  NIR_IDX = 96 - 1   # 95
+  RED_IDX = 54 - 1   # 53
+
+  nir = veg_np[NIR_IDX, :, :].astype('float32')
+  red = veg_np[RED_IDX, :, :].astype('float32')
+
+  ndvi = np.full(nir.shape, np.nan, dtype = 'float32')
+
+  valid = (nir > 0) & (red > 0) & ((nir + red) != 0)
+
+  ndvi[valid] = (nir[valid] - red[valid])/(nir[valid] + red[valid])
+
+  # NDVI threshold
+  ndvi_mask = (ndvi >= 0.40)
+  veg_np[:,~ndvi_mask] = np.nan
+  print("Proportion of pixels passing NDVI >= 0.40:", np.nanmean(ndvi_mask))
+  print("Proportion of pixels with valid NDVI inputs (nir>0 & red>0):", np.mean(valid))
+
   # Set no data to nan
   X = X.astype('float32')
-  X[np.isnan(X)] = np.nan
-  X[X <= 0] = np.nan  # Adjust threshold if needed
-  
+  bad = np.all(X <= 0, axis = 1)
+  X[bad, :] = np.nan
+
+  # Rescale data and remove outliers
+  X /= 10000.0
+  LOW, HIGH = 0.0, 2.0
+  invalid = (~np.isfinite(X)) | (X <= LOW) | (X > HIGH)
+  print("Invalid value fraction (<=0 or >2 or non-finite):", invalid.mean())
+  X[invalid] = np.nan
+
   # Save nan mask
-  #nan_mask = np.isnan(X)
+  nan_mask = np.isnan(X)
   prop_na = np.isnan(X).mean()
   print("Proportion of NaN values:", prop_na)
 
-  # Rescale data
-  X /= 10000
-
   # Remove unnecessary files
   os.remove(local_file)
-  del veg_np
+  del veg_np, raster, nir, red, ndvi
 
-  return X, prop_na, dim1, dim2, crs, transform
+  return X, nan_mask, dim1, dim2, crs, transform
 
-def perform_pca(X, dim1, dim2, ncomps = 3):
+def perform_pca(X, nan_mask, dim1, dim2, ncomps = 3):
   # Impute missing values
   print("Imputing missing values...")
   #imputer = SimpleImputer(missing_values=np.nan, strategy='median')
@@ -119,12 +142,17 @@ def perform_pca(X, dim1, dim2, ncomps = 3):
   pca_x = pca_x.reshape((dim1, dim2, ncomps))
   print("PCA shape:", pca_x.shape)
 
+  # Reapply NaN mask
+  nan_mask_reshaped = nan_mask[:, 0].reshape(dim1, dim2)  # Ensure mask matches raster dimensions
+  for i in range(ncomps):  # Apply mask to each PCA component
+      pca_x[:, :, i][nan_mask_reshaped] = np.nan
+
   return pca_x, var_explained
 
 def write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot, crs, transform):
     # Define the output raster file name
-    local_pca_raster_path = os.path.join(Out_Dir, f"{SITECODE}_pca_{plot}.tif")
-    s3_pca_raster_key = f"{SITECODE}_flightlines/{SITECODE}_pca_{plot}_impute.tif"
+    local_pca_raster_path = os.path.join(Out_Dir, f"{SITECODE}_pca_nanmask_{plot}.tif")
+    s3_pca_raster_key = f"{SITECODE}_flightlines/{SITECODE}_pca_nanmasl_{plot}_impute.tif"
 
     # Write PCA to raster
     with rasterio.open(
@@ -215,7 +243,7 @@ def calculate_fric(SITECODE, plot, pca_x, window_sizes, bucket_name, Out_Dir):
        window_batches,
        max_workers=cpu_count() - 1
    )
-  destination_s3_key_fric = "/" + SITECODE + "_specdiv_" + str(plot) + ".csv"
+  destination_s3_key_fric = "/FRic_Final/" + SITECODE + "_specdiv_" + str(plot) + ".csv"
   s3 = boto3.client('s3')
   s3.upload_file(local_file_path_fric, bucket_name, destination_s3_key_fric)
   print("FRic file uploaded to S3")
@@ -231,7 +259,7 @@ def calculate_fric_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name,
        window_batches,
        max_workers=cpu_count() - 1
    )
-  destination_s3_key_fric = "/" + SITECODE + "_specdiv_null_" + str(plot) + ".csv"
+  destination_s3_key_fric = "/FRic_Final/" + SITECODE + "_specdiv_null_" + str(plot) + ".csv"
   s3 = boto3.client('s3')
   s3.upload_file(local_file_path_fric_null, bucket_name, destination_s3_key_fric)
   print("Null FRic file uploaded to S3")
@@ -254,13 +282,13 @@ def calculate_fdiv_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name,
 def pca_specdiv_workflow(SITECODE):
   # Set directories
   # Depends on instance
-  Data_Dir = '/home/ec2-user/Functional_diversity_across_scales/01_data'
-  Out_Dir = '/home/ec2-user/Functional_diversity_across_scales/02_output'
+  Data_Dir = '/home/ec2-user/Spectral_diversity_across_scales/01_data'
+  Out_Dir = '/home/ec2-user/Spectral_diversity_across_scales/02_output'
   #Data_Dir = '/home/ec2-user/BioSCape_across_scales/01_data'
   #Out_Dir = '/home/ec2-user/BioSCape_across_scales/02_output'
   bucket_name = 'bioscape.gra'
   s3 = boto3.client('s3')
-  window_sizes = [60, 120, 240, 480, 960, 1200, 1500, 2000, 2200]
+  window_sizes = [60, 90, 130, 195, 285, 420, 620, 920, 1355, 2000]
   
   plots = identify_plots(SITECODE, s3, bucket_name)
   for plot in plots:
@@ -270,10 +298,10 @@ def pca_specdiv_workflow(SITECODE):
     write_pca_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x, plot, crs, transform)
     write_pca_random_to_raster(SITECODE, Data_Dir, Out_Dir, s3, bucket_name, pca_x_random, plot, crs, transform)
     calculate_fric_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name, Out_Dir)
-    calculate_fdiv_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name, Out_Dir)
+    #calculate_fdiv_null(SITECODE, plot, pca_x_random, window_sizes, bucket_name, Out_Dir)
     
     # Clear unnecessary variables from memory
-    del X, prop_na, pca_x, var_explained
+    del X, nan_mask, prop_na, pca_x, var_explained
     gc.collect()  # Trigger garbage collection
   
     print(f"Null specdiv processing complete for {SITECODE}, {plot}")
