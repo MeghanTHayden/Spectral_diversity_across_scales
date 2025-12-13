@@ -3,23 +3,23 @@ import Spectral_richness
 import PCA_specrich_null
 
 sites = [
-       # 'HEAL',
-       # 'BART',
+        'HEAL',
+        'BART',
         'CLBJ',
         'KONZ',
         'NIWO',
-        'ONAQ'#,
+        'ONAQ',
        # 'OSBS',
        # 'PUUM',
-       # 'SERC',
-       # 'SRER',
-       # 'TALL',
-       # 'TEAK',
-       # 'TOOL',
-       # 'UNDE',
-       # 'WOOD',
-       # 'WREF',
-       # 'YELL'
+        'SERC',
+        'SRER',
+        'TALL',
+        'TEAK',
+        'TOOL',
+        'UNDE',
+        'WOOD',
+        'WREF',
+        'YELL'
        ]
 
 for site in sites:
